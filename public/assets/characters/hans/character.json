@@ -1,0 +1,48 @@
+{
+  "schemaVersion": 1,
+  "characterId": "hans",
+  "displayName": "한스",
+  "atlas": "atlas.json",
+  "portrait": "portrait.png",
+  "portraitProvided": false,
+  "animationFps": 12,
+  "gameTickRate": 60,
+  "ticksPerAnimationFrame": 5,
+  "skills": [
+    {
+      "skillId": "guard",
+      "characterAnimations": [
+        {
+          "id": "f26e7f1e-f454-4f0c-a168-f8a442611033",
+          "name": "방어",
+          "loop": false
+        }
+      ],
+      "effectAnimations": []
+    },
+    {
+      "skillId": "crouch",
+      "characterAnimations": [
+        {
+          "id": "199f53ce-063c-41df-ad90-1918d8c5b76f",
+          "name": "앉기",
+          "loop": false
+        }
+      ],
+      "effectAnimations": []
+    },
+    {
+      "skillId": "jab",
+      "startupFrames": 3,
+      "cooldown": 6,
+      "characterAnimations": [
+        {
+          "id": "94680f9d-494d-4df0-9b76-d46d3836c8ac",
+          "name": "베기",
+          "loop": false
+        }
+      ],
+      "effectAnimations": []
+    }
+  ]
+}

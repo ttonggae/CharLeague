@@ -1,0 +1,792 @@
+{
+  "schemaVersion": 3,
+  "generator": "Atlas Studio",
+  "characterId": "hans",
+  "fps": 12,
+  "gameTickRate": 60,
+  "frameDurationTicks": 5,
+  "frameDurationMs": 83.3333,
+  "maxAtlasSize": {
+    "width": 4096,
+    "height": 4096
+  },
+  "generatedAt": "2026-09-20T10:32:35.619Z",
+  "previewLinkRule": "same-skill-id-only",
+  "atlases": {
+    "characters": [
+      {
+        "index": 0,
+        "file": "characters_1.png",
+        "width": 778,
+        "height": 56
+      }
+    ],
+    "effects": []
+  },
+  "skillLinks": [
+    {
+      "skillId": "guard",
+      "characterAnimations": [
+        {
+          "id": "f26e7f1e-f454-4f0c-a168-f8a442611033",
+          "name": "방어",
+          "loop": false
+        }
+      ],
+      "effectAnimations": []
+    },
+    {
+      "skillId": "crouch",
+      "characterAnimations": [
+        {
+          "id": "199f53ce-063c-41df-ad90-1918d8c5b76f",
+          "name": "앉기",
+          "loop": false
+        }
+      ],
+      "effectAnimations": []
+    },
+    {
+      "skillId": "jab",
+      "characterAnimations": [
+        {
+          "id": "94680f9d-494d-4df0-9b76-d46d3836c8ac",
+          "name": "베기",
+          "loop": false
+        }
+      ],
+      "effectAnimations": []
+    }
+  ],
+  "characterAnimations": [
+    {
+      "id": "21b841ed-7959-4510-a783-680db76ccd55",
+      "skillId": null,
+      "name": "idle",
+      "fps": 12,
+      "loop": true,
+      "frames": [
+        {
+          "id": "d8cb0fc8-2e9f-4f78-80cc-62bc725056e0",
+          "name": "frame_1",
+          "order": 0,
+          "durationTicks": 5,
+          "durationMs": 83.3333,
+          "atlas": "characters_1.png",
+          "atlasIndex": 0,
+          "rect": {
+            "x": 0,
+            "y": 0,
+            "width": 41,
+            "height": 47
+          },
+          "originalSize": {
+            "width": 64,
+            "height": 64
+          },
+          "trim": {
+            "x": 15,
+            "y": 17,
+            "width": 41,
+            "height": 47
+          },
+          "empty": false,
+          "pivot": {
+            "x": 32,
+            "y": 32
+          },
+          "position": {
+            "x": 0,
+            "y": 0
+          }
+        },
+        {
+          "id": "c483d3bd-387d-4d70-9f6a-0cc8f2772466",
+          "name": "frame_2",
+          "order": 1,
+          "durationTicks": 5,
+          "durationMs": 83.3333,
+          "atlas": "characters_1.png",
+          "atlasIndex": 0,
+          "rect": {
+            "x": 43,
+            "y": 0,
+            "width": 41,
+            "height": 47
+          },
+          "originalSize": {
+            "width": 64,
+            "height": 64
+          },
+          "trim": {
+            "x": 15,
+            "y": 17,
+            "width": 41,
+            "height": 47
+          },
+          "empty": false,
+          "pivot": {
+            "x": 32,
+            "y": 32
+          },
+          "position": {
+            "x": 0,
+            "y": 0
+          }
+        },
+        {
+          "id": "ae8f1a22-b46c-45bf-83be-7a151d651080",
+          "name": "frame_3",
+          "order": 2,
+          "durationTicks": 5,
+          "durationMs": 83.3333,
+          "atlas": "characters_1.png",
+          "atlasIndex": 0,
+          "rect": {
+            "x": 86,
+            "y": 0,
+            "width": 41,
+            "height": 47
+          },
+          "originalSize": {
+            "width": 64,
+            "height": 64
+          },
+          "trim": {
+            "x": 15,
+            "y": 17,
+            "width": 41,
+            "height": 47
+          },
+          "empty": false,
+          "pivot": {
+            "x": 32,
+            "y": 32
+          },
+          "position": {
+            "x": 0,
+            "y": 0
+          }
+        },
+        {
+          "id": "58c4aa04-039a-4374-8c61-f2739dfc2ae0",
+          "name": "frame_4",
+          "order": 3,
+          "durationTicks": 5,
+          "durationMs": 83.3333,
+          "atlas": "characters_1.png",
+          "atlasIndex": 0,
+          "rect": {
+            "x": 129,
+            "y": 0,
+            "width": 41,
+            "height": 47
+          },
+          "originalSize": {
+            "width": 64,
+            "height": 64
+          },
+          "trim": {
+            "x": 15,
+            "y": 17,
+            "width": 41,
+            "height": 47
+          },
+          "empty": false,
+          "pivot": {
+            "x": 32,
+            "y": 32
+          },
+          "position": {
+            "x": 0,
+            "y": 0
+          }
+        },
+        {
+          "id": "73de3590-2bb4-4785-944b-bb436c7f414f",
+          "name": "frame_5",
+          "order": 4,
+          "durationTicks": 5,
+          "durationMs": 83.3333,
+          "atlas": "characters_1.png",
+          "atlasIndex": 0,
+          "rect": {
+            "x": 172,
+            "y": 0,
+            "width": 41,
+            "height": 47
+          },
+          "originalSize": {
+            "width": 64,
+            "height": 64
+          },
+          "trim": {
+            "x": 15,
+            "y": 17,
+            "width": 41,
+            "height": 47
+          },
+          "empty": false,
+          "pivot": {
+            "x": 32,
+            "y": 32
+          },
+          "position": {
+            "x": 0,
+            "y": 0
+          }
+        },
+        {
+          "id": "2f137d89-53e9-4b42-abd0-8ac667b58920",
+          "name": "frame_6",
+          "order": 5,
+          "durationTicks": 5,
+          "durationMs": 83.3333,
+          "atlas": "characters_1.png",
+          "atlasIndex": 0,
+          "rect": {
+            "x": 215,
+            "y": 0,
+            "width": 41,
+            "height": 47
+          },
+          "originalSize": {
+            "width": 64,
+            "height": 64
+          },
+          "trim": {
+            "x": 15,
+            "y": 17,
+            "width": 41,
+            "height": 47
+          },
+          "empty": false,
+          "pivot": {
+            "x": 32,
+            "y": 32
+          },
+          "position": {
+            "x": 0,
+            "y": 0
+          }
+        },
+        {
+          "id": "4894e2dd-1c74-4dcd-8dc5-2db163a468dd",
+          "name": "frame_7",
+          "order": 6,
+          "durationTicks": 5,
+          "durationMs": 83.3333,
+          "atlas": "characters_1.png",
+          "atlasIndex": 0,
+          "rect": {
+            "x": 258,
+            "y": 0,
+            "width": 40,
+            "height": 50
+          },
+          "originalSize": {
+            "width": 64,
+            "height": 64
+          },
+          "trim": {
+            "x": 15,
+            "y": 14,
+            "width": 40,
+            "height": 50
+          },
+          "empty": false,
+          "pivot": {
+            "x": 32,
+            "y": 32
+          },
+          "position": {
+            "x": 0,
+            "y": 0
+          }
+        },
+        {
+          "id": "7b496461-e1e2-47b6-973f-12e1073a1388",
+          "name": "frame_8",
+          "order": 7,
+          "durationTicks": 5,
+          "durationMs": 83.3333,
+          "atlas": "characters_1.png",
+          "atlasIndex": 0,
+          "rect": {
+            "x": 300,
+            "y": 0,
+            "width": 40,
+            "height": 50
+          },
+          "originalSize": {
+            "width": 64,
+            "height": 64
+          },
+          "trim": {
+            "x": 15,
+            "y": 14,
+            "width": 40,
+            "height": 50
+          },
+          "empty": false,
+          "pivot": {
+            "x": 32,
+            "y": 32
+          },
+          "position": {
+            "x": 0,
+            "y": 0
+          }
+        },
+        {
+          "id": "ad53f8f8-48a6-4cad-abf5-85b826b90bd4",
+          "name": "frame_9",
+          "order": 8,
+          "durationTicks": 5,
+          "durationMs": 83.3333,
+          "atlas": "characters_1.png",
+          "atlasIndex": 0,
+          "rect": {
+            "x": 342,
+            "y": 0,
+            "width": 40,
+            "height": 50
+          },
+          "originalSize": {
+            "width": 64,
+            "height": 64
+          },
+          "trim": {
+            "x": 15,
+            "y": 14,
+            "width": 40,
+            "height": 50
+          },
+          "empty": false,
+          "pivot": {
+            "x": 32,
+            "y": 32
+          },
+          "position": {
+            "x": 0,
+            "y": 0
+          }
+        },
+        {
+          "id": "f219c785-6bb4-475e-939b-b323851438d3",
+          "name": "frame_10",
+          "order": 9,
+          "durationTicks": 5,
+          "durationMs": 83.3333,
+          "atlas": "characters_1.png",
+          "atlasIndex": 0,
+          "rect": {
+            "x": 384,
+            "y": 0,
+            "width": 40,
+            "height": 50
+          },
+          "originalSize": {
+            "width": 64,
+            "height": 64
+          },
+          "trim": {
+            "x": 15,
+            "y": 14,
+            "width": 40,
+            "height": 50
+          },
+          "empty": false,
+          "pivot": {
+            "x": 32,
+            "y": 32
+          },
+          "position": {
+            "x": 0,
+            "y": 0
+          }
+        },
+        {
+          "id": "f0f394c9-d914-4123-9970-54326f65cba8",
+          "name": "frame_11",
+          "order": 10,
+          "durationTicks": 5,
+          "durationMs": 83.3333,
+          "atlas": "characters_1.png",
+          "atlasIndex": 0,
+          "rect": {
+            "x": 426,
+            "y": 0,
+            "width": 40,
+            "height": 50
+          },
+          "originalSize": {
+            "width": 64,
+            "height": 64
+          },
+          "trim": {
+            "x": 15,
+            "y": 14,
+            "width": 40,
+            "height": 50
+          },
+          "empty": false,
+          "pivot": {
+            "x": 32,
+            "y": 32
+          },
+          "position": {
+            "x": 0,
+            "y": 0
+          }
+        },
+        {
+          "id": "2b467e11-d5c8-46c6-8cde-f0497d77a3c9",
+          "name": "frame_12",
+          "order": 11,
+          "durationTicks": 5,
+          "durationMs": 83.3333,
+          "atlas": "characters_1.png",
+          "atlasIndex": 0,
+          "rect": {
+            "x": 468,
+            "y": 0,
+            "width": 40,
+            "height": 50
+          },
+          "originalSize": {
+            "width": 64,
+            "height": 64
+          },
+          "trim": {
+            "x": 15,
+            "y": 14,
+            "width": 40,
+            "height": 50
+          },
+          "empty": false,
+          "pivot": {
+            "x": 32,
+            "y": 32
+          },
+          "position": {
+            "x": 0,
+            "y": 0
+          }
+        }
+      ]
+    },
+    {
+      "id": "f26e7f1e-f454-4f0c-a168-f8a442611033",
+      "skillId": "guard",
+      "name": "방어",
+      "fps": 12,
+      "loop": false,
+      "frames": [
+        {
+          "id": "d51989de-4ed4-4f6c-b7ba-99e3533c61de",
+          "name": "frame_1",
+          "order": 0,
+          "durationTicks": 5,
+          "durationMs": 83.3333,
+          "atlas": "characters_1.png",
+          "atlasIndex": 0,
+          "rect": {
+            "x": 510,
+            "y": 0,
+            "width": 29,
+            "height": 42
+          },
+          "originalSize": {
+            "width": 64,
+            "height": 64
+          },
+          "trim": {
+            "x": 20,
+            "y": 22,
+            "width": 29,
+            "height": 42
+          },
+          "empty": false,
+          "pivot": {
+            "x": 32,
+            "y": 32
+          },
+          "position": {
+            "x": 0,
+            "y": 0
+          }
+        }
+      ]
+    },
+    {
+      "id": "199f53ce-063c-41df-ad90-1918d8c5b76f",
+      "skillId": "crouch",
+      "name": "앉기",
+      "fps": 12,
+      "loop": false,
+      "frames": [
+        {
+          "id": "bb6a86bd-d5bb-4e7e-861b-93d0341bb865",
+          "name": "frame_1",
+          "order": 0,
+          "durationTicks": 5,
+          "durationMs": 83.3333,
+          "atlas": "characters_1.png",
+          "atlasIndex": 0,
+          "rect": {
+            "x": 541,
+            "y": 0,
+            "width": 24,
+            "height": 31
+          },
+          "originalSize": {
+            "width": 64,
+            "height": 64
+          },
+          "trim": {
+            "x": 19,
+            "y": 33,
+            "width": 24,
+            "height": 31
+          },
+          "empty": false,
+          "pivot": {
+            "x": 32,
+            "y": 32
+          },
+          "position": {
+            "x": 0,
+            "y": 0
+          }
+        }
+      ]
+    },
+    {
+      "id": "94680f9d-494d-4df0-9b76-d46d3836c8ac",
+      "skillId": "jab",
+      "name": "베기",
+      "fps": 12,
+      "loop": false,
+      "frames": [
+        {
+          "id": "d0b89001-1d55-4ed1-bd49-0f5f8fb1c5ab",
+          "name": "1",
+          "order": 0,
+          "durationTicks": 5,
+          "durationMs": 83.3333,
+          "atlas": "characters_1.png",
+          "atlasIndex": 0,
+          "rect": {
+            "x": 567,
+            "y": 0,
+            "width": 30,
+            "height": 56
+          },
+          "originalSize": {
+            "width": 64,
+            "height": 64
+          },
+          "trim": {
+            "x": 17,
+            "y": 8,
+            "width": 30,
+            "height": 56
+          },
+          "empty": false,
+          "pivot": {
+            "x": 32,
+            "y": 32
+          },
+          "position": {
+            "x": 0,
+            "y": 0
+          }
+        },
+        {
+          "id": "7b27ad6b-7878-44ad-aa8b-bf88cf5b2a10",
+          "name": "2",
+          "order": 1,
+          "durationTicks": 5,
+          "durationMs": 83.3333,
+          "atlas": "characters_1.png",
+          "atlasIndex": 0,
+          "rect": {
+            "x": 599,
+            "y": 0,
+            "width": 30,
+            "height": 56
+          },
+          "originalSize": {
+            "width": 64,
+            "height": 64
+          },
+          "trim": {
+            "x": 17,
+            "y": 8,
+            "width": 30,
+            "height": 56
+          },
+          "empty": false,
+          "pivot": {
+            "x": 32,
+            "y": 32
+          },
+          "position": {
+            "x": 0,
+            "y": 0
+          }
+        },
+        {
+          "id": "9524ad7c-a252-435c-b64e-53b7e29855d5",
+          "name": "3",
+          "order": 2,
+          "durationTicks": 5,
+          "durationMs": 83.3333,
+          "atlas": "characters_1.png",
+          "atlasIndex": 0,
+          "rect": {
+            "x": 631,
+            "y": 0,
+            "width": 30,
+            "height": 56
+          },
+          "originalSize": {
+            "width": 64,
+            "height": 64
+          },
+          "trim": {
+            "x": 17,
+            "y": 8,
+            "width": 30,
+            "height": 56
+          },
+          "empty": false,
+          "pivot": {
+            "x": 32,
+            "y": 32
+          },
+          "position": {
+            "x": 0,
+            "y": 0
+          }
+        },
+        {
+          "id": "07af8116-9d59-4923-bf4b-db008d7cf4eb",
+          "name": "4",
+          "order": 3,
+          "durationTicks": 5,
+          "durationMs": 83.3333,
+          "atlas": "characters_1.png",
+          "atlasIndex": 0,
+          "rect": {
+            "x": 663,
+            "y": 0,
+            "width": 37,
+            "height": 48
+          },
+          "originalSize": {
+            "width": 64,
+            "height": 64
+          },
+          "trim": {
+            "x": 20,
+            "y": 16,
+            "width": 37,
+            "height": 48
+          },
+          "empty": false,
+          "pivot": {
+            "x": 32,
+            "y": 32
+          },
+          "position": {
+            "x": 0,
+            "y": 0
+          }
+        },
+        {
+          "id": "949963f6-1b00-4269-851c-4d6cf278a1f8",
+          "name": "5",
+          "order": 4,
+          "durationTicks": 5,
+          "durationMs": 83.3333,
+          "atlas": "characters_1.png",
+          "atlasIndex": 0,
+          "rect": {
+            "x": 702,
+            "y": 0,
+            "width": 37,
+            "height": 47
+          },
+          "originalSize": {
+            "width": 64,
+            "height": 64
+          },
+          "trim": {
+            "x": 20,
+            "y": 17,
+            "width": 37,
+            "height": 47
+          },
+          "empty": false,
+          "pivot": {
+            "x": 32,
+            "y": 32
+          },
+          "position": {
+            "x": 0,
+            "y": 0
+          }
+        },
+        {
+          "id": "ea8c93d3-7f05-4c77-9f05-68f255825ded",
+          "name": "6",
+          "order": 5,
+          "durationTicks": 5,
+          "durationMs": 83.3333,
+          "atlas": "characters_1.png",
+          "atlasIndex": 0,
+          "rect": {
+            "x": 741,
+            "y": 0,
+            "width": 37,
+            "height": 47
+          },
+          "originalSize": {
+            "width": 64,
+            "height": 64
+          },
+          "trim": {
+            "x": 20,
+            "y": 17,
+            "width": 37,
+            "height": 47
+          },
+          "empty": false,
+          "pivot": {
+            "x": 32,
+            "y": 32
+          },
+          "position": {
+            "x": 0,
+            "y": 0
+          }
+        }
+      ]
+    }
+  ],
+  "effectAnimations": [
+    {
+      "id": "f6d42b9c-beb0-4dd8-9459-0fa2a5871f1e",
+      "skillId": null,
+      "name": "effect",
+      "fps": 12,
+      "loop": false,
+      "startFrame": 0,
+      "layer": "front",
+      "followCharacter": true,
+      "frames": []
+    }
+  ]
+}

@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#f5f5f5" />
+    <title>그림전쟁 · 그림판 대전</title>
+  </head>
+  <body>
+    <main class="shell">
+      <header class="topbar">
+        <div><p class="eyebrow">낙서 한 판 · 연습장 01</p><h1>그림전쟁<span class="title-star" aria-hidden="true">✳</span></h1></div>
+        <div class="topbar-right"><span class="paint-dots" aria-hidden="true"><i></i><i></i><i></i></span><span>60FPS · 1대1 대전</span></div>
+      </header>
+      <section id="main-menu" class="selection-screen" aria-label="메인 메뉴">
+        <div class="selection-title"><div><p class="eyebrow">그림전쟁</p><h2>대전 모드</h2><p>연습하거나 초대 링크로 친구와 대전하세요.</p></div></div>
+        <div class="menu-actions"><button id="local-mode" type="button">연습 모드</button><button id="online-mode" type="button">온라인 대전</button></div>
+      </section>
+      <section id="selection-screen" class="selection-screen" aria-label="캐릭터 선택" hidden>
+        <div class="selection-title"><div><p class="eyebrow">캐릭터 선택</p><h2 id="selection-heading">연습 모드</h2><p id="selection-description">플레이어와 상대 더미를 각각 고른 뒤 전투를 시작하세요.</p></div><button id="selection-back" type="button">메인 메뉴</button></div>
+        <div id="online-lobby" class="online-lobby" hidden><div><strong id="connection-status">연결 중</strong><span id="online-ping">핑 --</span></div><div class="invite-row"><input id="invite-link" type="text" readonly aria-label="초대 링크"><button id="copy-link" type="button">링크 복사</button></div><button id="online-retry" type="button" hidden>다시 연결</button><p id="online-countdown" hidden></p></div>
+        <div id="roster-issues" class="roster-issues" role="status" hidden></div>
+        <div class="selection-grid">
+          <section class="selection-side" aria-label="플레이어 캐릭터 선택">
+            <h3><span>01</span> <span id="player-title">플레이어</span></h3>
+            <div id="player-options" class="character-list"></div>
+            <div class="selected-display"><canvas id="player-preview" width="170" height="188" aria-label="선택한 플레이어 대기 애니메이션"></canvas><div><strong id="player-name">불러오는 중</strong><p id="player-description"></p><p id="player-stats" class="selected-stats"></p></div></div>
+          </section>
+          <section class="selection-side" aria-label="상대 캐릭터 선택">
+            <h3><span>02</span> <span id="opponent-title">상대 더미</span></h3>
+            <div id="dummy-options" class="character-list"></div>
+            <div class="selected-display"><canvas id="dummy-preview" width="170" height="188" aria-label="선택한 더미 대기 애니메이션"></canvas><div><strong id="dummy-name">불러오는 중</strong><p id="dummy-description"></p><p id="dummy-stats" class="selected-stats"></p></div></div>
+          </section>
+        </div>
+        <div class="selection-bottom"><span>↑ ↓ ← → 이동 · 등록된 공격 기술만 사용</span><button id="start-fight" type="button" disabled>대전 시작 ↗</button></div>
+      </section>
+      <section id="arena-screen" class="arena-card" aria-label="게임 화면" hidden>
+        <div class="screen-wrap"><canvas id="game" width="960" height="540" aria-label="1대1 격투게임"></canvas></div>
+        <div id="online-disconnect" class="disconnect-overlay" hidden><strong id="disconnect-reason">연결 끊김</strong><div><button id="disconnect-retry" type="button">다시 연결</button><button id="disconnect-menu" type="button">메인 메뉴</button></div></div>
+        <div class="arena-footer">
+          <div class="mode-control" role="group" aria-label="더미 행동">
+            <span>더미 행동</span>
+            <button type="button" data-mode="attack" class="active">반격</button>
+            <button type="button" data-mode="guard">방어</button>
+            <button type="button" data-mode="idle">대기</button>
+          </div>
+          <span id="game-status" aria-live="polite">훈련 준비 완료</span>
+          <button type="button" id="back-to-select">캐릭터 변경</button>
+          <button type="button" id="restart">다시 시작 ↺</button>
+        </div>
+      </section>
+      <section class="guide" aria-label="조작 가이드">
+        <div class="guide-heading"><p class="eyebrow">그림판 사용법</p><h2>조작 가이드</h2><p>선택한 캐릭터에 등록된 기술만 사용할 수 있습니다.</p></div>
+        <div class="guide-grid">
+          <div class="guide-block"><h3>이동 / 방어</h3><p><kbd>←</kbd><kbd>→</kbd> 이동 · 두 번 입력 대시</p><p><kbd>↑</kbd> 점프 <kbd>↓</kbd> 앉기 <kbd>Shift</kbd> 방어</p></div>
+          <div class="guide-block"><h3>선택한 캐릭터 기술</h3><div id="available-moves"><p>불러오는 중</p></div></div>
+          <div class="guide-block"><h3>연습 모드 메뉴 / 더미</h3><p><kbd>R</kbd> 재시작 · <kbd>C</kbd> 캐릭터 선택</p><p><kbd>1</kbd> 반격 <kbd>2</kbd> 방어 <kbd>3</kbd> 대기</p></div>
+        </div>
+      </section>
+    </main>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
