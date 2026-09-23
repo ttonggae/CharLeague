@@ -1,7 +1,7 @@
 import { hasAnimation, loadAtlas, type LoadedAtlas } from './atlas.ts';
 import { ACTION_IDS, ANIMATION_FPS, ATTACK_IDS, TICK_RATE, dummyData, playerData, type Button, type CharacterData, type Direction, type MoveData } from './data.ts';
 
-const ROOT = '/assets/characters/';
+const ROOT = `${import.meta.env?.BASE_URL ?? '/'}assets/characters/`;
 const object = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null && !Array.isArray(value);
 const text = (value: unknown, field: string): string => {
   if (typeof value !== 'string' || !value.trim()) throw new Error(`${field}: 비어 있거나 문자열이 아닙니다`);
