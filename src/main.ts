@@ -5,7 +5,7 @@ import { TICK_RATE } from './data.ts';
 import { Game, type DummyMode } from './game.ts';
 import { KeyboardInput } from './input.ts';
 import { P2PConnection, type ConnectionState, type ControlPacket, type OnlineRole } from './network.ts';
-import { createInviteToken, inviteUrl, OnlineMatch, rosterVersion, tokenFromFragment, type InputPacket } from './online.ts';
+import { createInviteToken, inviteUrl, OnlineMatch, pauseActionState, rosterVersion, tokenFromFragment, type InputPacket } from './online.ts';
 import { Renderer } from './render.ts';
 
 function required<T extends Element>(selector: string): T {
@@ -73,6 +73,7 @@ let resumeSyncStartedAt = 0;
 let lastRemoteInputAt = performance.now();
 let remoteVisible = true;
 let guestReadyPauseId = 0;
+let guestRequestedPauseId = 0;
 
 function resizeGameCanvas(): void {
   if (arenaScreen.hidden) return;
@@ -261,7 +262,9 @@ function beginCountdown(packet: Extract<ControlPacket, { kind: 'start' }>): void
 function showOnlinePause(detail: string, canResume = false): void {
   if (!game || mode !== 'online') return;
   pauseTitle.textContent = '상대와의 연결 대기'; pauseDetail.textContent = detail;
-  resumeButton.hidden = onlineRole !== 'host' || pausePhase !== 'paused'; resumeButton.disabled = !canResume; pauseOverlay.hidden = false;
+  const action = pauseActionState(onlineRole, pausePhase, pauseId, guestRequestedPauseId, document.hidden, canResume);
+  resumeButton.hidden = action.hidden; resumeButton.disabled = action.disabled; resumeButton.textContent = action.label;
+  pauseOverlay.hidden = false;
 }
 
 function guestCanResume(): boolean {
@@ -293,6 +296,15 @@ function beginResumeCountdown(id: number): void {
 }
 
 function requestOnlineResume(): void {
+  if (onlineRole === 'guest') {
+    if (pausePhase !== 'paused' || !match || !connection?.connected || document.hidden || pauseId < 1
+      || guestRequestedPauseId === pauseId) return;
+    guestRequestedPauseId = pauseId;
+    connection.sendControl({ kind: 'presence', visible: true });
+    connection.sendControl({ kind: 'presence-ready', id: pauseId });
+    showOnlinePause('재개를 요청했습니다. 호스트를 기다리는 중');
+    return;
+  }
   if (onlineRole !== 'host' || pausePhase !== 'paused' || !match || !connection?.connected || !guestCanResume()) return;
   pausePhase = 'syncing'; resumeSyncStartedAt = performance.now();
   showOnlinePause('상태 동기화 중');
@@ -320,9 +332,9 @@ function receiveControl(packet: ControlPacket): void {
     }
     beginCountdown(packet);
   } else if (packet.kind === 'pause' && onlineRole === 'guest' && match && packet.id >= pauseId) {
+    if (packet.id > pauseId) guestRequestedPauseId = 0;
     pauseId = packet.id;
-    pauseGuest('양쪽 화면이 활성 상태가 될 때까지 기다리는 중');
-    if (!document.hidden) connection?.sendControl({ kind: 'presence-ready', id: pauseId });
+    pauseGuest(document.hidden ? '양쪽 화면이 활성 상태가 될 때까지 기다리는 중' : '재개 요청 버튼을 눌러 호스트에게 알리세요');
   } else if (packet.kind === 'pause-request' && onlineRole === 'host' && match) {
     remoteVisible = false; guestReadyPauseId = 0;
     pauseHost('양쪽 화면이 활성 상태가 될 때까지 기다리는 중');
@@ -331,16 +343,16 @@ function receiveControl(packet: ControlPacket): void {
     if (!packet.visible) {
       guestReadyPauseId = 0;
       if (onlineRole === 'host') pauseHost('양쪽 화면이 활성 상태가 될 때까지 기다리는 중');
-      else pauseGuest('양쪽 화면이 활성 상태가 될 때까지 기다리는 중');
+      else { guestRequestedPauseId = 0; pauseGuest('양쪽 화면이 활성 상태가 될 때까지 기다리는 중'); }
     } else if (onlineRole === 'host' && pausePhase === 'paused') {
-      showOnlinePause('게스트의 활성 상태 확인을 기다리는 중', guestCanResume());
+      showOnlinePause('게스트의 재개 요청을 기다리는 중', guestCanResume());
     }
   } else if (packet.kind === 'presence-check' && onlineRole === 'guest' && match && packet.id >= pauseId) {
-    pauseId = packet.id; pauseGuest('양쪽 화면이 활성 상태가 될 때까지 기다리는 중');
-    if (!document.hidden) connection?.sendControl({ kind: 'presence-ready', id: packet.id });
+    pauseId = packet.id; guestRequestedPauseId = 0;
+    pauseGuest(document.hidden ? '양쪽 화면이 활성 상태가 될 때까지 기다리는 중' : '재개 요청 버튼을 눌러 호스트에게 알리세요');
   } else if (packet.kind === 'presence-ready' && onlineRole === 'host' && match && packet.id === pauseId) {
     remoteVisible = true; guestReadyPauseId = packet.id;
-    if (pausePhase === 'paused') showOnlinePause('양쪽 화면이 활성 상태입니다. 호스트가 재개할 수 있습니다', guestCanResume());
+    if (pausePhase === 'paused') showOnlinePause('게스트가 재개를 요청했습니다', guestCanResume());
   } else if (packet.kind === 'resume-ready' && onlineRole === 'host' && match
     && pausePhase === 'syncing' && packet.id === pauseId && packet.frame === match.frame) {
     connection?.sendControl({ kind: 'resume-go', id: pauseId, delayMs: 3_000 });
@@ -364,7 +376,7 @@ function startOnlineFight(config: Countdown): void {
   for (const packet of earlyInputs) match.receiveInput(packet);
   earlyInputs = [];
   pausePhase = 'running'; pauseId = 0; resumeUntil = 0; resumeSyncStartedAt = 0;
-  lastRemoteInputAt = performance.now(); remoteVisible = true; guestReadyPauseId = 0; pauseOverlay.hidden = true;
+  lastRemoteInputAt = performance.now(); remoteVisible = true; guestReadyPauseId = 0; guestRequestedPauseId = 0; pauseOverlay.hidden = true;
   connection.sendControl({ kind: 'presence', visible: !document.hidden });
   countdown = null; countdownText.hidden = true; showArena();
   if (document.hidden) {
@@ -392,7 +404,7 @@ async function enterOnline(role: OnlineRole, token: string): Promise<void> {
   else sessionStorage.removeItem('grim-host-token');
   localReady = false; remoteReady = null; pingMs = null;
   pausePhase = 'running'; pauseId = 0; resumeUntil = 0; resumeSyncStartedAt = 0;
-  lastRemoteInputAt = performance.now(); remoteVisible = true; guestReadyPauseId = 0;
+  lastRemoteInputAt = performance.now(); remoteVisible = true; guestReadyPauseId = 0; guestRequestedPauseId = 0;
   chosen = [null, null];
   location.hash = `duel=${token}`;
   required<HTMLElement>('#selection-heading').textContent = role === 'host' ? '온라인 대전 · P1' : '온라인 대전 · P2';
@@ -460,10 +472,9 @@ document.addEventListener('visibilitychange', () => {
   if (onlineRole === 'host') {
     pauseHost('양쪽 화면이 활성 상태가 될 때까지 기다리는 중');
   } else {
+    guestRequestedPauseId = 0;
     pauseGuest('양쪽 화면이 활성 상태가 될 때까지 기다리는 중');
-    if (document.hidden) connection.sendControl({ kind: 'pause-request' });
-    else if (pauseId > 0) connection.sendControl({ kind: 'presence-ready', id: pauseId });
-    else connection.sendControl({ kind: 'pause-request' });
+    connection.sendControl({ kind: 'pause-request' });
   }
 });
 startButton.addEventListener('click', () => {

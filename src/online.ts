@@ -3,12 +3,20 @@ import type { InputFrame, AttackPress } from './input.ts';
 import { Game, emptyInput, type GameSnapshot } from './game.ts';
 import type { CharacterEntry } from './characters.ts';
 
-export const ONLINE_VERSION = 'grim-war-online-10';
+export const ONLINE_VERSION = 'grim-war-online-11';
 export const INPUT_DELAY = 3;
 const MAX_FRAME = 1_000_000_000;
 const INPUT_MASK = 2 ** 34 - 1;
 const object = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null && !Array.isArray(value);
 const integer = (value: unknown, min: number, max: number): value is number => Number.isInteger(value) && (value as number) >= min && (value as number) <= max;
+
+export function pauseActionState(role: 'host' | 'guest', phase: 'running' | 'paused' | 'syncing' | 'countdown',
+  pauseId: number, guestRequestedPauseId: number, pageHidden: boolean, hostCanResume: boolean) {
+  if (phase !== 'paused') return { hidden: true, disabled: true, label: role === 'host' ? '재개' : '재개 요청' };
+  if (role === 'host') return { hidden: false, disabled: !hostCanResume, label: '재개' };
+  const requested = pauseId > 0 && guestRequestedPauseId === pauseId;
+  return { hidden: false, disabled: pageHidden || pauseId < 1 || requested, label: requested ? '요청 완료' : '재개 요청' };
+}
 
 export function hashText(value: string): string {
   let hash = 0x811c9dc5;

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { parseCharacter } from '../src/characters.ts';
 import { Game, emptyInput } from '../src/game.ts';
-import { OnlineMatch, packInput, unpackInput, validInputBits, parseInputPacket, parseSnapshotPacket, tokenFromFragment } from '../src/online.ts';
+import { OnlineMatch, packInput, pauseActionState, unpackInput, validInputBits, parseInputPacket, parseSnapshotPacket, tokenFromFragment } from '../src/online.ts';
 import { parseControl } from '../src/network.ts';
 import type { InputFrame } from '../src/input.ts';
 
@@ -53,6 +53,17 @@ test('pause controls validate ranges and delayed pre-pause inputs cannot enter a
   guest.receiveInput({ kind: 'input', epoch: 4, frame: 4, bits: 0 });
   guest.advance(1);
   assert.equal(guest.frame, 4);
+});
+
+test('guest must explicitly request resume before the host action becomes available', () => {
+  assert.deepEqual(pauseActionState('guest', 'paused', 4, 0, false, false),
+    { hidden: false, disabled: false, label: '재개 요청' });
+  assert.deepEqual(pauseActionState('guest', 'paused', 4, 4, false, false),
+    { hidden: false, disabled: true, label: '요청 완료' });
+  assert.deepEqual(pauseActionState('host', 'paused', 4, 0, false, false),
+    { hidden: false, disabled: true, label: '재개' });
+  assert.deepEqual(pauseActionState('host', 'paused', 4, 0, false, true),
+    { hidden: false, disabled: false, label: '재개' });
 });
 
 test('two lockstep games exchange frame inputs and repair only after a hash mismatch', () => {
