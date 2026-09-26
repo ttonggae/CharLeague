@@ -104,6 +104,14 @@ test('hans guard drains stamina and reduces incoming damage by 25 percent', asyn
   assert.equal(game.player.stamina, 70, 'guard stamina waits half a second before regenerating');
   game.update(emptyInput());
   assert.equal(game.player.stamina, 70.2);
+  game.restart(); game.setMode('idle');
+  game.update({ ...emptyInput(), attacks: [{ button: 'A', horizontal: 0, up: false, down: false }] });
+  game.update({ ...guard, attacks: [{ button: 'Shift', horizontal: 0, up: false, down: false }] });
+  for (let i = 0; i < 35; i++) game.update(guard);
+  assert.equal(game.player.guarding, false, 'guard pressed during a skill stays ignored while the key remains held');
+  game.update(emptyInput());
+  game.update(guard);
+  assert.equal(game.player.guarding, true, 'guard becomes available after releasing and pressing it again');
 });
 
 test('S stuns, attacks against an active stun deal 50 percent more damage, and the third hit plays P', async () => {
@@ -160,8 +168,8 @@ test('in-game skill status distinguishes ready, cooldown, resource, condition, a
   assert.equal(skillStatus(game.player, slash, game.tick).label, '사용 중');
   const busy = skillStatus(game.player, hans.moves.find(move => move.id === 'S')!, game.tick);
   assert.equal(busy.reason, 'busy');
-  assert.equal(busy.label, '입력 가능');
-  assert.equal(isSkillStatusDimmed(busy.reason), false, 'a buffered skill stays bright while another skill is active');
+  assert.equal(busy.label, '사용 불가');
+  assert.equal(isSkillStatusDimmed(busy.reason), true, 'an ignored skill input is dimmed while another skill is active');
   assert.equal(isSkillStatusDimmed(skillStatus(game.player, slash, game.tick).reason), false, 'the active skill remains highlighted');
   assert.equal(isSkillStatusDimmed(skillStatus(game.player, ultimate, game.tick).reason), true, 'an unmet ultimate condition stays dimmed during another skill');
 });

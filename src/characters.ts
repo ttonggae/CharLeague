@@ -89,6 +89,7 @@ export function parseCharacter(raw: unknown, id: string): CharacterData & { atla
     if (!ATTACK_IDS.includes(moveId)) throw new Error(`${prefix}.id: A/S/D/Shift/Space 중 하나여야 합니다`);
     if (value.sequence.at(-1) !== moveId) throw new Error(`${prefix}.sequence: 마지막 키는 기술 ID ${moveId}여야 합니다`);
     if (value.effect !== undefined && value.effect !== moveId) throw new Error(`${prefix}.effect: 기술 ID ${moveId}와 같아야 합니다`);
+    if (value.simultaneous !== undefined && typeof value.simultaneous !== 'boolean') throw new Error(`${prefix}.simultaneous: boolean 값이 필요합니다`);
     return {
       id: moveId, label: text(value.label, `${prefix}.label`),
       sequence: value.sequence as Button[], direction: value.direction as Direction,
@@ -104,7 +105,8 @@ export function parseCharacter(raw: unknown, id: string): CharacterData & { atla
       color: typeof value.color === 'string' ? value.color : color,
       bodyAnimation: typeof value.bodyAnimation === 'string' ? value.bodyAnimation : undefined,
       bodyAnimationMode: (value.bodyAnimationMode === 'overlay' ? 'overlay' : 'replace') as MoveData['bodyAnimationMode'],
-      effectAnimation: typeof value.effectAnimation === 'string' ? value.effectAnimation : undefined
+      effectAnimation: typeof value.effectAnimation === 'string' ? value.effectAnimation : undefined,
+      simultaneous: value.simultaneous === true
     };
   }).sort((a, b) => b.sequence.length - a.sequence.length || Number(b.direction !== 'any') - Number(a.direction !== 'any'));
   return validateUltimate({
@@ -133,6 +135,7 @@ function parseStudioCharacter(raw: Record<string, unknown>, id: string): Charact
     staminaCost: number; damage?: number; chip?: number; hitstun?: number; reach?: number; height?: number;
     knockback?: MoveData['knockback'];
     kind?: MoveData['kind']; stunTicks?: number; guardStaminaPerSecond?: number; damageReduction?: number;
+    simultaneous?: boolean;
     projectile?: MoveData['projectile'];
   };
   const links = new Map<string, StudioLink>();
@@ -144,6 +147,7 @@ function parseStudioCharacter(raw: Record<string, unknown>, id: string): Charact
       throw new Error(`skills[${index}].skillId: A/S/D/Shift/Space/Move/P 중 하나여야 합니다`);
     }
     if (links.has(skillId)) throw new Error(`skills[${index}].skillId: 중복된 조작 ID ${skillId}`);
+    if (skill.simultaneous !== undefined && typeof skill.simultaneous !== 'boolean') throw new Error(`skills[${index}].simultaneous: boolean 값이 필요합니다`);
     if (skill.startup !== undefined && skill.startupFrames !== undefined) throw new Error(`skills[${index}]: startup과 startupFrames를 동시에 쓸 수 없습니다`);
     const kind = skill.kind === undefined ? undefined : text(skill.kind, `skills[${index}].kind`) as MoveData['kind'];
     if (kind && !['melee', 'area', 'projectile', 'guard'].includes(kind)) throw new Error(`skills[${index}].kind: melee/area/projectile/guard 중 하나여야 합니다`);
@@ -188,7 +192,7 @@ function parseStudioCharacter(raw: Record<string, unknown>, id: string): Charact
       height: skill.height === undefined ? undefined : number(skill.height, `skills[${index}].height`, 1) * sourceScale,
       kind, stunTicks: skill.stunSeconds === undefined ? undefined : Math.round(number(skill.stunSeconds, `skills[${index}].stunSeconds`, 0.01) * TICK_RATE),
       guardStaminaPerSecond: skill.guardStaminaPerSecond === undefined ? undefined : number(skill.guardStaminaPerSecond, `skills[${index}].guardStaminaPerSecond`),
-      damageReduction, projectile, knockback
+      damageReduction, projectile, knockback, simultaneous: skill.simultaneous === true
     });
   });
   const moves = playerData.moves.filter(move => links.has(move.id)).map(move => {
@@ -200,7 +204,7 @@ function parseStudioCharacter(raw: Record<string, unknown>, id: string): Charact
       knockback: link.knockback ?? move.knockback,
       reach: link.reach ?? move.reach, height: link.height ?? move.height, kind: link.kind ?? 'melee',
       stunTicks: link.stunTicks, guardStaminaPerSecond: link.guardStaminaPerSecond,
-      damageReduction: link.damageReduction, projectile: link.projectile };
+      damageReduction: link.damageReduction, projectile: link.projectile, simultaneous: link.simultaneous };
   });
   return validateUltimate({
     ...playerData,

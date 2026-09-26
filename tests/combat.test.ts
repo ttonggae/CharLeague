@@ -99,14 +99,29 @@ test('Space works as a regular skill when the character has no ultimate config',
   assert.equal(game.player.ultimateProgress, 0);
 });
 
-test('attack input is buffered for 15 ticks during recovery', () => {
+test('skill input during another skill is discarded instead of buffered', () => {
   const game = new Game(); game.setMode('idle');
   press(game, 'D');
-  advance(game, 43);
   press(game, 'A');
   assert.equal(game.player.attack?.move.id, 'D');
-  advance(game, 7);
-  assert.equal(game.player.attack?.move.id, 'A');
+  assert.equal(game.snapshot().controls[0].pending.length, 0);
+  assert.deepEqual(game.snapshot().controls[0].history.map(press => press.button), ['D']);
+  advance(game, 55);
+  assert.equal(game.player.attack, null);
+});
+
+test('a data-defined simultaneous skill can run beside the current skill', () => {
+  const character = structuredClone(playerData);
+  character.moves.find(move => move.id === 'A')!.simultaneous = true;
+  const game = new Game(character, character); game.setMode('idle');
+  press(game, 'D');
+  press(game, 'A');
+  assert.equal(game.player.attack?.move.id, 'D');
+  assert.deepEqual(game.player.concurrentAttacks.map(attack => attack.move.id), ['A']);
+  assert.equal(game.player.stamina, 60);
+  const restored = new Game(character, character);
+  restored.restore(game.snapshot());
+  assert.deepEqual(restored.snapshot(), game.snapshot());
 });
 
 test('hit, dummy block, knockback, KO and button restart', () => {

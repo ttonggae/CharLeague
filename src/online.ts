@@ -3,7 +3,7 @@ import type { InputFrame, AttackPress } from './input.ts';
 import { Game, emptyInput, type GameSnapshot } from './game.ts';
 import type { CharacterEntry } from './characters.ts';
 
-export const ONLINE_VERSION = 'grim-war-online-11';
+export const ONLINE_VERSION = 'grim-war-online-12';
 export const INPUT_DELAY = 3;
 const MAX_FRAME = 1_000_000_000;
 const INPUT_MASK = 2 ** 34 - 1;
@@ -99,6 +99,12 @@ export function parseHashPacket(raw: unknown): HashPacket | null {
 }
 
 const states = new Set<FighterState>(['idle', 'move', 'jump', 'fall', 'guard', 'attack', 'hurt', 'stun', 'ko']);
+function validAttack(raw: unknown, gameFighter: Game['player'], simultaneousOnly = false): boolean {
+  if (!object(raw) || typeof raw.moveId !== 'string') return false;
+  const move = gameFighter.data.moves.find(candidate => candidate.id === raw.moveId);
+  return !!move && (!simultaneousOnly || move.simultaneous === true)
+    && integer(raw.tick, 0, 10_000) && typeof raw.hit === 'boolean';
+}
 function validFighter(raw: unknown, gameFighter: Game['player']): boolean {
   if (!object(raw)) return false;
   for (const key of ['x', 'y', 'vx', 'vy']) if (typeof raw[key] !== 'number' || !Number.isFinite(raw[key]) || Math.abs(raw[key]) > 10_000) return false;
@@ -110,16 +116,17 @@ function validFighter(raw: unknown, gameFighter: Game['player']): boolean {
     || typeof raw.ultimateProgress !== 'number' || !Number.isFinite(raw.ultimateProgress) || raw.ultimateProgress < 0 || raw.ultimateProgress > ultimateTarget
     || (raw.facing !== -1 && raw.facing !== 1)
     || !states.has(raw.state as FighterState) || !integer(raw.stateTick, 0, MAX_FRAME) || typeof raw.guarding !== 'boolean' || typeof raw.guardHeld !== 'boolean'
+    || typeof raw.guardInputBlocked !== 'boolean'
     || !integer(raw.hurtTicks, 0, 10_000)
     || !integer(raw.stunTicks, 0, 10_000)
     || (raw.ultimateReadyEffectTick !== null && !integer(raw.ultimateReadyEffectTick, 0, 10_000))
-    || !object(cooldowns)
+    || !object(cooldowns) || !Array.isArray(raw.concurrentAttacks) || raw.concurrentAttacks.length > 5
+    || !raw.concurrentAttacks.every(attack => validAttack(attack, gameFighter, true))
+    || new Set(raw.concurrentAttacks.map(attack => object(attack) ? attack.moveId : null)).size !== raw.concurrentAttacks.length
     || !SKILL_IDS.every(id => integer(cooldowns[id], 0, MAX_FRAME))) return false;
-  if (raw.attack === null) return true;
-  if (!object(raw.attack) || typeof raw.attack.moveId !== 'string') return false;
-  const attack = raw.attack;
-  return gameFighter.data.moves.some(move => move.id === attack.moveId)
-    && integer(attack.tick, 0, 10_000) && typeof attack.hit === 'boolean';
+  if (raw.attack === null) return raw.concurrentAttacks.length === 0;
+  return validAttack(raw.attack, gameFighter)
+    && !raw.concurrentAttacks.some(attack => object(attack) && attack.moveId === (raw.attack as Record<string, unknown>).moveId);
 }
 function validProjectiles(raw: unknown, game: Game): boolean {
   if (!Array.isArray(raw) || raw.length > 32) return false;

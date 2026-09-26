@@ -1,6 +1,6 @@
 import { ANIMATION_FPS, STAGE, TICK_RATE, VIEWPORT, WORLD_SCALE, type MoveData } from './data.ts';
 import { animationGroundOffset, animationScale, drawAtlasFrame, fighterAnimation, fighterAnimationTick, type LoadedAtlas } from './atlas.ts';
-import { Game, type Fighter } from './game.ts';
+import { fighterAttacks, Game, type ActiveAttack, type Fighter } from './game.ts';
 import { isUltimateMove, isUltimateReady, ultimateStatus } from './abilities.ts';
 
 const W = VIEWPORT.width, H = VIEWPORT.height;
@@ -13,12 +13,12 @@ export type SkillStatusReason = 'ready' | 'active' | 'cooldown' | 'ko' | 'stun' 
 export interface SkillStatus { available: boolean; label: string; remainingTicks: number; reason: SkillStatusReason }
 
 export function isSkillStatusDimmed(reason: SkillStatusReason): boolean {
-  return ['ko', 'stun', 'hurt', 'stamina', 'condition'].includes(reason);
+  return ['ko', 'stun', 'hurt', 'busy', 'stamina', 'condition'].includes(reason);
 }
 
 export function skillStatus(fighter: Fighter, move: MoveData, tick: number): SkillStatus {
   if (move.kind === 'guard' && fighter.guarding) return { available: false, label: '사용 중', remainingTicks: 0, reason: 'active' };
-  if (fighter.attack?.move.id === move.id) return { available: false, label: '사용 중', remainingTicks: 0, reason: 'active' };
+  if (fighterAttacks(fighter).some(attack => attack.move.id === move.id)) return { available: false, label: '사용 중', remainingTicks: 0, reason: 'active' };
   const remainingTicks = Math.max(0, fighter.cooldowns[move.id] - tick);
   if (remainingTicks > 0) return { available: false, label: `쿨 ${Math.ceil(remainingTicks / 6) / 10}초`, remainingTicks, reason: 'cooldown' };
   if (fighter.hp <= 0) return { available: false, label: 'K.O.', remainingTicks: 0, reason: 'ko' };
@@ -30,7 +30,7 @@ export function skillStatus(fighter: Fighter, move: MoveData, tick: number): Ski
     const target = fighter.data.ultimate?.condition.target ?? 0;
     return { available: false, label: `조건 ${Math.floor(fighter.ultimateProgress)}/${target}`, remainingTicks: 0, reason: 'condition' };
   }
-  if (fighter.attack) return { available: false, label: '입력 가능', remainingTicks: 0, reason: 'busy' };
+  if (fighterAttacks(fighter).length > 0 && !move.simultaneous) return { available: false, label: '사용 불가', remainingTicks: 0, reason: 'busy' };
   return { available: true, label: '사용 가능', remainingTicks: 0, reason: 'ready' };
 }
 
@@ -50,7 +50,7 @@ export class Renderer {
     this.shadow(game.player); this.shadow(game.dummy);
     this.fighter(game.player, this.playerAtlas, game.tick);
     this.fighter(game.dummy, this.dummyAtlas, game.tick);
-    this.effect(game.player, this.playerAtlas); this.effect(game.dummy, this.dummyAtlas);
+    this.effects(game.player, this.playerAtlas); this.effects(game.dummy, this.dummyAtlas);
     this.projectiles(game);
     this.readyEffect(game.player, this.playerAtlas); this.readyEffect(game.dummy, this.dummyAtlas);
     ctx.restore();
@@ -135,9 +135,11 @@ export class Renderer {
     c.restore();
   }
 
-  private effect(f: Fighter, atlas: LoadedAtlas | null): void {
-    const attack = f.attack;
-    if (!attack) return;
+  private effects(f: Fighter, atlas: LoadedAtlas | null): void {
+    for (const attack of fighterAttacks(f)) this.effect(f, atlas, attack);
+  }
+
+  private effect(f: Fighter, atlas: LoadedAtlas | null, attack: ActiveAttack): void {
     const { move, tick } = attack;
     if (move.kind === 'projectile' || move.kind === 'guard') return;
     if (tick < move.startup || tick >= move.startup + move.active) return;

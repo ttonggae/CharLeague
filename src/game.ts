@@ -8,8 +8,9 @@ export interface Fighter {
   data: CharacterData;
   x: number; y: number; vx: number; vy: number; facing: -1 | 1;
   hp: number; stamina: number; staminaRegenDelayTicks: number; ultimateProgress: number; state: FighterState; stateTick: number; guarding: boolean; guardHeld: boolean;
+  guardInputBlocked: boolean;
   hurtTicks: number; stunTicks: number; ultimateReadyEffectTick: number | null;
-  cooldowns: Record<Button, number>; attack: ActiveAttack | null;
+  cooldowns: Record<Button, number>; attack: ActiveAttack | null; concurrentAttacks: ActiveAttack[];
 }
 export interface GameProjectile { owner: 0 | 1; moveId: Button; x: number; y: number; vx: number; age: number }
 interface BufferedPress extends AttackPress { tick: number; facing: -1 | 1 }
@@ -19,13 +20,21 @@ interface ControlMemory {
   history: ComboPress[];
 }
 const controlMemory = (): ControlMemory => ({ pending: [], history: [] });
+function discardPending(control: ControlMemory, index: number): void {
+  const [discarded] = control.pending.splice(index, 1);
+  for (let historyIndex = control.history.length - 1; historyIndex >= 0; historyIndex--) {
+    const item = control.history[historyIndex];
+    if (item.button === discarded.button && item.tick === discarded.tick) { control.history.splice(historyIndex, 1); break; }
+  }
+}
 
 export interface FighterSnapshot {
   x: number; y: number; vx: number; vy: number; facing: -1 | 1; hp: number; stamina: number; staminaRegenDelayTicks: number; ultimateProgress: number;
-  state: FighterState; stateTick: number; guarding: boolean; guardHeld: boolean; hurtTicks: number;
+  state: FighterState; stateTick: number; guarding: boolean; guardHeld: boolean; guardInputBlocked: boolean; hurtTicks: number;
   stunTicks: number; ultimateReadyEffectTick: number | null;
   cooldowns: Record<Button, number>;
   attack: { moveId: string; tick: number; hit: boolean } | null;
+  concurrentAttacks: { moveId: string; tick: number; hit: boolean }[];
 }
 export interface GameSnapshot {
   tick: number; seed: number; winner: 'player' | 'dummy' | null;
@@ -35,10 +44,11 @@ export interface GameSnapshot {
 }
 
 function fighter(data: CharacterData, x: number, facing: -1 | 1): Fighter {
-  return { data, x, y: STAGE.floor, vx: 0, vy: 0, facing, hp: data.maxHp, stamina: data.maxStamina, staminaRegenDelayTicks: 0, ultimateProgress: 0, state: 'idle', stateTick: 0, guarding: false, guardHeld: false, hurtTicks: 0, stunTicks: 0, ultimateReadyEffectTick: null,
-    cooldowns: { A: 0, S: 0, D: 0, Shift: 0, Space: 0 }, attack: null };
+  return { data, x, y: STAGE.floor, vx: 0, vy: 0, facing, hp: data.maxHp, stamina: data.maxStamina, staminaRegenDelayTicks: 0, ultimateProgress: 0, state: 'idle', stateTick: 0, guarding: false, guardHeld: false, guardInputBlocked: false, hurtTicks: 0, stunTicks: 0, ultimateReadyEffectTick: null,
+    cooldowns: { A: 0, S: 0, D: 0, Shift: 0, Space: 0 }, attack: null, concurrentAttacks: [] };
 }
 function clamp(value: number, min: number, max: number): number { return Math.max(min, Math.min(max, value)); }
+export function fighterAttacks(f: Fighter): ActiveAttack[] { return f.attack ? [f.attack, ...f.concurrentAttacks] : f.concurrentAttacks; }
 
 export class Game {
   player: Fighter;
@@ -138,18 +148,26 @@ export class Game {
     this.updateState(this.dummy);
   }
 
-  private canMove(f: Fighter): boolean { return f.hp > 0 && f.hurtTicks === 0 && f.stunTicks === 0 && !f.attack; }
+  private canMove(f: Fighter): boolean { return f.hp > 0 && f.hurtTicks === 0 && f.stunTicks === 0 && fighterAttacks(f).length === 0; }
 
   private applyControlledInput(f: Fighter, input: InputFrame, control: ControlMemory): void {
     const horizontal = Number(input.right) - Number(input.left);
     if (horizontal !== 0 && this.canMove(f)) f.facing = horizontal as -1 | 1;
     for (const press of input.attacks) {
       if (f.data.moves.some(move => move.id === press.button && move.kind === 'guard')) continue;
-      control.pending.push({ ...press, tick: this.tick, facing: f.facing });
+      const buffered = { ...press, tick: this.tick, facing: f.facing };
+      if (fighterAttacks(f).length > 0) {
+        const preview = { pending: control.pending, history: [...control.history, { button: press.button, tick: this.tick }] };
+        if (!this.chooseMove(f, preview, buffered)?.simultaneous) continue;
+      }
+      control.pending.push(buffered);
       control.history.push({ button: press.button, tick: this.tick });
     }
     const guardMove = f.data.moves.find(move => move.id === 'Shift' && move.kind === 'guard');
-    f.guardHeld = !!guardMove && input.heldSkills.includes('Shift');
+    const rawGuardHeld = !!guardMove && input.heldSkills.includes('Shift');
+    if (!rawGuardHeld) f.guardInputBlocked = false;
+    else if (fighterAttacks(f).length > 0 && !guardMove?.simultaneous) f.guardInputBlocked = true;
+    f.guardHeld = rawGuardHeld && !f.guardInputBlocked;
     f.guarding = f.guardHeld && this.canMove(f) && f.y >= STAGE.floor && f.stamina > 0;
     if (f.guarding && guardMove) {
       const drain = (guardMove.guardStaminaPerSecond ?? 0) / TICK_RATE;
@@ -170,13 +188,14 @@ export class Game {
       const press = control.pending[index];
       const move = this.chooseMove(f, control, press);
       if (!move) { control.pending.splice(index--, 1); continue; }
+      const hasActiveSkill = fighterAttacks(f).length > 0;
+      if (hasActiveSkill && (!move.simultaneous || !canUseMove(f, move) || this.tick < f.cooldowns[move.id]
+        || fighterAttacks(f).some(attack => attack.move.id === move.id))) {
+        discardPending(control, index--); continue;
+      }
       if (!canUseMove(f, move)) continue;
-      const current = f.attack;
-      const canCancel = current && !current.move.cooldown && current.move.sequence.length === 1 && current.move.sequence[0] === 'A'
-        && current.tick >= current.move.startup + current.move.active
-        && (press.button === 'A' || move.sequence.length > 1);
-      if ((current && !canCancel) || this.tick < f.cooldowns[move.id]) return;
-      if (this.startAttack(f, move)) {
+      if (this.tick < f.cooldowns[move.id]) return;
+      if (this.startAttack(f, move, hasActiveSkill)) {
         control.pending.splice(index, 1);
       }
       return;
@@ -198,12 +217,14 @@ export class Game {
     });
   }
 
-  private startAttack(f: Fighter, move: MoveData): boolean {
+  private startAttack(f: Fighter, move: MoveData, concurrent = false): boolean {
     if (move.kind === 'guard' || !canUseMove(f, move)) return false;
     spendForMove(f, move);
     if (move.staminaCost > 0) f.staminaRegenDelayTicks = STAMINA_REGEN_DELAY;
     if (isUltimateMove(f, move)) f.ultimateReadyEffectTick = null;
-    f.attack = { move, tick: 0, hit: false };
+    const attack = { move, tick: 0, hit: false };
+    if (concurrent && move.simultaneous) f.concurrentAttacks.push(attack);
+    else f.attack = attack;
     f.guarding = false;
     f.vx = 0;
     return true;
@@ -233,15 +254,19 @@ export class Game {
       if (!isUltimateReady(f)) f.ultimateReadyEffectTick = null;
       else f.ultimateReadyEffectTick = (f.ultimateReadyEffectTick + 1) % (f.data.ultimate?.readyEffectTicks ?? 40);
     }
-    if (f.attack) {
-      f.attack.tick++;
-      const { move, tick } = f.attack;
+    const advanceAttack = (attack: ActiveAttack): boolean => {
+      attack.tick++;
+      const { move, tick } = attack;
       if (move.kind === 'projectile' && move.projectile && tick === move.startup) this.spawnProjectile(f, owner, move);
       if (tick >= move.startup + move.active + move.recovery) {
-        f.attack = null;
         f.cooldowns[move.id] = this.tick + (move.cooldown ?? 0);
+        return false;
       }
-    }
+      return true;
+    };
+    if (f.attack && !advanceAttack(f.attack)) f.attack = null;
+    f.concurrentAttacks = f.concurrentAttacks.filter(advanceAttack);
+    if (!f.attack && f.concurrentAttacks.length > 0) f.attack = f.concurrentAttacks.shift()!;
     f.x = clamp(f.x + f.vx, STAGE.left + f.data.width / 2, STAGE.right - f.data.width / 2);
     if (f.y < STAGE.floor || f.vy < 0) {
       f.vy += 0.65;
@@ -287,19 +312,20 @@ export class Game {
   }
 
   private resolveAttack(attacker: Fighter, defender: Fighter): void {
-    const attack = attacker.attack;
-    if (!attack || attack.hit || defender.hp <= 0) return;
-    const move = attack.move;
-    if (move.kind === 'projectile' || move.kind === 'guard') return;
-    if (attack.tick < move.startup || attack.tick >= move.startup + move.active) return;
-    const forwardDistance = (defender.x - attacker.x) * attacker.facing;
-    const horizontalHit = move.kind === 'area'
-      ? Math.abs(defender.x - attacker.x) <= move.reach + defender.data.width / 2
-      : forwardDistance >= 0 && forwardDistance <= move.reach + defender.data.width / 2;
-    const verticalHit = attacker.y - move.height <= defender.y && attacker.y >= defender.y - defender.data.height;
-    if (!horizontalHit || !verticalHit) return;
-    attack.hit = true;
-    this.applyHit(attacker, defender, move);
+    for (const attack of fighterAttacks(attacker)) {
+      if (attack.hit || defender.hp <= 0) continue;
+      const move = attack.move;
+      if (move.kind === 'projectile' || move.kind === 'guard') continue;
+      if (attack.tick < move.startup || attack.tick >= move.startup + move.active) continue;
+      const forwardDistance = (defender.x - attacker.x) * attacker.facing;
+      const horizontalHit = move.kind === 'area'
+        ? Math.abs(defender.x - attacker.x) <= move.reach + defender.data.width / 2
+        : forwardDistance >= 0 && forwardDistance <= move.reach + defender.data.width / 2;
+      const verticalHit = attacker.y - move.height <= defender.y && attacker.y >= defender.y - defender.data.height;
+      if (!horizontalHit || !verticalHit) continue;
+      attack.hit = true;
+      this.applyHit(attacker, defender, move);
+    }
   }
 
   private applyHit(attacker: Fighter, defender: Fighter, move: MoveData): void {
@@ -313,6 +339,7 @@ export class Game {
     if (!guarded) {
       defender.vy = move.knockback.y;
       defender.attack = null;
+      defender.concurrentAttacks = [];
       if (move.stunTicks) { defender.stunTicks = Math.max(defender.stunTicks, move.stunTicks); defender.hurtTicks = 0; }
       else defender.hurtTicks = move.hitstun;
       defender.guarding = false;
@@ -327,6 +354,7 @@ export class Game {
     if (defender.hp === 0) {
       this.winner = defender === this.dummy ? 'player' : 'dummy';
       defender.attack = null;
+      defender.concurrentAttacks = [];
       defender.hurtTicks = 0;
       defender.stunTicks = 0;
       defender.vx = 0;
@@ -340,7 +368,7 @@ export class Game {
     if (f.hp <= 0) next = 'ko';
     else if (f.stunTicks > 0) next = 'stun';
     else if (f.hurtTicks > 0) next = 'hurt';
-    else if (f.attack) next = 'attack';
+    else if (fighterAttacks(f).length > 0) next = 'attack';
     else if (f.y < STAGE.floor) next = f.vy < 0 ? 'jump' : 'fall';
     else if (f.guarding) next = 'guard';
     else if (Math.abs(f.vx) > 0.1) next = 'move';
@@ -352,10 +380,11 @@ export class Game {
   snapshot(): GameSnapshot {
     const save = (f: Fighter): FighterSnapshot => ({
       x: f.x, y: f.y, vx: f.vx, vy: f.vy, facing: f.facing, hp: f.hp, stamina: f.stamina, staminaRegenDelayTicks: f.staminaRegenDelayTicks, ultimateProgress: f.ultimateProgress,
-      state: f.state, stateTick: f.stateTick, guarding: f.guarding, guardHeld: f.guardHeld,
+      state: f.state, stateTick: f.stateTick, guarding: f.guarding, guardHeld: f.guardHeld, guardInputBlocked: f.guardInputBlocked,
       hurtTicks: f.hurtTicks, stunTicks: f.stunTicks, ultimateReadyEffectTick: f.ultimateReadyEffectTick,
       cooldowns: { ...f.cooldowns },
-      attack: f.attack ? { moveId: f.attack.move.id, tick: f.attack.tick, hit: f.attack.hit } : null
+      attack: f.attack ? { moveId: f.attack.move.id, tick: f.attack.tick, hit: f.attack.hit } : null,
+      concurrentAttacks: f.concurrentAttacks.map(attack => ({ moveId: attack.move.id, tick: attack.tick, hit: attack.hit }))
     });
     return {
       tick: this.tick, seed: this.seed, winner: this.winner,
@@ -369,12 +398,18 @@ export class Game {
     const restoreFighter = (data: CharacterData, saved: FighterSnapshot): Fighter => {
       const move = saved.attack && data.moves.find(candidate => candidate.id === saved.attack!.moveId);
       if (saved.attack && !move) throw new Error(`알 수 없는 기술 ID: ${saved.attack.moveId}`);
+      const concurrentAttacks = saved.concurrentAttacks.map(attack => {
+        const concurrentMove = data.moves.find(candidate => candidate.id === attack.moveId);
+        if (!concurrentMove) throw new Error(`알 수 없는 동시 기술 ID: ${attack.moveId}`);
+        return { move: concurrentMove, tick: attack.tick, hit: attack.hit };
+      });
       return { data, x: saved.x, y: saved.y, vx: saved.vx, vy: saved.vy,
         facing: saved.facing, hp: saved.hp, stamina: saved.stamina, staminaRegenDelayTicks: saved.staminaRegenDelayTicks, ultimateProgress: saved.ultimateProgress, state: saved.state, stateTick: saved.stateTick,
-        guarding: saved.guarding, guardHeld: saved.guardHeld,
+        guarding: saved.guarding, guardHeld: saved.guardHeld, guardInputBlocked: saved.guardInputBlocked,
         hurtTicks: saved.hurtTicks, stunTicks: saved.stunTicks, ultimateReadyEffectTick: saved.ultimateReadyEffectTick,
         cooldowns: { ...saved.cooldowns },
-        attack: saved.attack && move ? { move, tick: saved.attack.tick, hit: saved.attack.hit } : null };
+        attack: saved.attack && move ? { move, tick: saved.attack.tick, hit: saved.attack.hit } : null,
+        concurrentAttacks };
     };
     const player = restoreFighter(this.playerCharacter, snapshot.player);
     const dummy = restoreFighter(this.dummyCharacter, snapshot.dummy);

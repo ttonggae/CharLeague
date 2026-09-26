@@ -53,6 +53,7 @@ export interface MoveData {
   bodyAnimation?: string;
   bodyAnimationMode?: 'overlay' | 'replace';
   effectAnimation?: string;
+  simultaneous?: boolean;
   kind?: 'melee' | 'area' | 'projectile' | 'guard';
   stunTicks?: number;
   guardStaminaPerSecond?: number;
