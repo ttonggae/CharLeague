@@ -70,7 +70,7 @@
         {
           "id": "cb47a083-5626-4414-aaf5-b099ebb312ff",
           "name": "Move",
-          "loop": false
+          "loop": true
         }
       ],
       "effectAnimations": []
@@ -111,7 +111,7 @@
         {
           "id": "98e33aeb-f070-4092-901b-7d99297c99f5",
           "name": "effect_2",
-          "loop": false,
+          "loop": true,
           "startFrame": 0
         }
       ]
@@ -1009,7 +1009,7 @@
       "skillId": "Move",
       "name": "Move",
       "fps": 12,
-      "loop": false,
+      "loop": true,
       "frames": [
         {
           "id": "8d86e218-e7d6-4375-b7eb-276bf03d5c92",
@@ -1696,7 +1696,7 @@
       "skillId": "P",
       "name": "effect_2",
       "fps": 12,
-      "loop": false,
+      "loop": true,
       "startFrame": 0,
       "layer": "front",
       "followCharacter": true,

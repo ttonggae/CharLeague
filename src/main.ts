@@ -360,6 +360,11 @@ startButton.addEventListener('click', () => {
 });
 required<HTMLButtonElement>('#back-to-select').addEventListener('click', () => { if (mode === 'local') { hideArena(); enterLocal(); } });
 required<HTMLButtonElement>('#restart').addEventListener('click', () => { if (mode === 'local') game?.restart(); });
+window.addEventListener('keydown', event => {
+  if (mode !== 'local' || !game || event.repeat) return;
+  if (event.code === 'KeyR') { event.preventDefault(); game.restart(); }
+  else if (event.code === 'Escape') { event.preventDefault(); hideArena(); enterLocal(); }
+});
 function setDummyMode(dummyMode: DummyMode): void {
   if (mode !== 'local') return;
   game?.setMode(dummyMode);

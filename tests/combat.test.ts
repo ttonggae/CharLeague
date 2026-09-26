@@ -31,9 +31,9 @@ test('fixed-tick movement, jump, gravity and floor collision remain; down does n
   assert.equal(game.player.vx, 0);
   game.update({ ...emptyInput(), up: true });
   assert.equal(game.player.state, 'jump');
-  assert.ok(game.player.y < 442);
+  assert.ok(game.player.y < 884);
   advance(game, 50);
-  assert.equal(game.player.y, 442);
+  assert.equal(game.player.y, 884);
   assert.equal(game.player.state, 'idle');
 });
 

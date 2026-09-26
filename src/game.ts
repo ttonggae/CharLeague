@@ -63,8 +63,8 @@ export class Game {
     this.playerCharacter = playerCharacter;
     this.dummyCharacter = dummyCharacter;
     this.bestOfThree = bestOfThree;
-    this.player = fighter(playerCharacter, 286, 1);
-    this.dummy = fighter(dummyCharacter, 674, -1);
+    this.player = fighter(playerCharacter, 572, 1);
+    this.dummy = fighter(dummyCharacter, 1348, -1);
     this.seed = seed >>> 0;
   }
 
@@ -75,8 +75,8 @@ export class Game {
   }
 
   private resetRound(): void {
-    this.player = fighter(this.playerCharacter, 286, 1);
-    this.dummy = fighter(this.dummyCharacter, 674, -1);
+    this.player = fighter(this.playerCharacter, 572, 1);
+    this.dummy = fighter(this.dummyCharacter, 1348, -1);
     this.winner = null; this.koTick = null; this.notice = 'FIGHT!'; this.noticeTick = this.tick;
     this.controls = [controlMemory(), controlMemory()];
     this.dummyCooldown = 150;
@@ -227,7 +227,7 @@ export class Game {
     if (f.stunTicks > 0) { f.stunTicks--; f.vx *= 0.88; }
     if (f.ultimateReadyEffectTick !== null) {
       if (!isUltimateReady(f)) f.ultimateReadyEffectTick = null;
-      else if (++f.ultimateReadyEffectTick >= (f.data.ultimate?.readyEffectTicks ?? 40)) f.ultimateReadyEffectTick = null;
+      else f.ultimateReadyEffectTick = (f.ultimateReadyEffectTick + 1) % (f.data.ultimate?.readyEffectTicks ?? 40);
     }
     if (f.attack) {
       f.attack.tick++;

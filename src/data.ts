@@ -110,4 +110,6 @@ export const TICK_RATE = 60;
 export const ANIMATION_FPS = 12;
 export const INPUT_BUFFER = 15; // 0.25 seconds
 export const COMBO_WINDOW = 48;
-export const STAGE = { width: 960, height: 540, floor: 442, left: 30, right: 930 } as const;
+export const VIEWPORT = { width: 960, height: 540 } as const;
+export const WORLD_SCALE = 0.5;
+export const STAGE = { width: 1920, height: 1080, floor: 884, left: 60, right: 1860 } as const;

@@ -1,32 +1,33 @@
-import { ANIMATION_FPS, STAGE, TICK_RATE, type MoveData } from './data.ts';
+import { ANIMATION_FPS, STAGE, TICK_RATE, VIEWPORT, WORLD_SCALE, type MoveData } from './data.ts';
 import { animationGroundOffset, animationScale, drawAtlasFrame, fighterAnimation, type LoadedAtlas } from './atlas.ts';
 import { Game, type Fighter } from './game.ts';
 import { isUltimateMove, isUltimateReady, ultimateStatus } from './abilities.ts';
 
-const W = STAGE.width, H = STAGE.height;
+const W = VIEWPORT.width, H = VIEWPORT.height;
 
 export function attackEffectAnchor(f: Fighter, move: MoveData): { x: number; y: number } {
   return { x: f.x + f.facing * (f.data.width / 2 + move.reach * 0.48), y: f.y - move.height * 0.53 };
 }
 
-export interface SkillStatus { available: boolean; label: string; remainingTicks: number }
+export type SkillStatusReason = 'ready' | 'active' | 'cooldown' | 'ko' | 'stun' | 'hurt' | 'busy' | 'stamina' | 'condition';
+export interface SkillStatus { available: boolean; label: string; remainingTicks: number; reason: SkillStatusReason }
 
 export function skillStatus(fighter: Fighter, move: MoveData, tick: number): SkillStatus {
-  if (move.kind === 'guard' && fighter.guarding) return { available: false, label: '사용 중', remainingTicks: 0 };
-  if (fighter.attack?.move.id === move.id) return { available: false, label: '사용 중', remainingTicks: 0 };
+  if (move.kind === 'guard' && fighter.guarding) return { available: false, label: '사용 중', remainingTicks: 0, reason: 'active' };
+  if (fighter.attack?.move.id === move.id) return { available: false, label: '사용 중', remainingTicks: 0, reason: 'active' };
   const remainingTicks = Math.max(0, fighter.cooldowns[move.id] - tick);
-  if (remainingTicks > 0) return { available: false, label: `쿨 ${Math.ceil(remainingTicks / 6) / 10}초`, remainingTicks };
-  if (fighter.hp <= 0) return { available: false, label: 'K.O.', remainingTicks: 0 };
-  if (fighter.stunTicks > 0) return { available: false, label: '기절 중', remainingTicks: 0 };
-  if (fighter.hurtTicks > 0) return { available: false, label: '피격 중', remainingTicks: 0 };
-  if (fighter.attack) return { available: false, label: '행동 중', remainingTicks: 0 };
-  if (move.kind === 'guard' && fighter.stamina <= 0) return { available: false, label: '기력 부족', remainingTicks: 0 };
-  if (fighter.stamina < move.staminaCost) return { available: false, label: '기력 부족', remainingTicks: 0 };
+  if (remainingTicks > 0) return { available: false, label: `쿨 ${Math.ceil(remainingTicks / 6) / 10}초`, remainingTicks, reason: 'cooldown' };
+  if (fighter.hp <= 0) return { available: false, label: 'K.O.', remainingTicks: 0, reason: 'ko' };
+  if (fighter.stunTicks > 0) return { available: false, label: '기절 중', remainingTicks: 0, reason: 'stun' };
+  if (fighter.hurtTicks > 0) return { available: false, label: '피격 중', remainingTicks: 0, reason: 'hurt' };
+  if (fighter.attack) return { available: false, label: '행동 중', remainingTicks: 0, reason: 'busy' };
+  if (move.kind === 'guard' && fighter.stamina <= 0) return { available: false, label: '기력 부족', remainingTicks: 0, reason: 'stamina' };
+  if (fighter.stamina < move.staminaCost) return { available: false, label: '기력 부족', remainingTicks: 0, reason: 'stamina' };
   if (isUltimateMove(fighter, move) && !isUltimateReady(fighter)) {
     const target = fighter.data.ultimate?.condition.target ?? 0;
-    return { available: false, label: `조건 ${Math.floor(fighter.ultimateProgress)}/${target}`, remainingTicks: 0 };
+    return { available: false, label: `조건 ${Math.floor(fighter.ultimateProgress)}/${target}`, remainingTicks: 0, reason: 'condition' };
   }
-  return { available: true, label: '사용 가능', remainingTicks: 0 };
+  return { available: true, label: '사용 가능', remainingTicks: 0, reason: 'ready' };
 }
 
 export class Renderer {
@@ -41,12 +42,14 @@ export class Renderer {
     const ctx = this.ctx;
     ctx.clearRect(0, 0, W, H);
     this.background();
+    ctx.save(); ctx.scale(WORLD_SCALE, WORLD_SCALE);
     this.shadow(game.player); this.shadow(game.dummy);
     this.fighter(game.player, this.playerAtlas, game.tick);
     this.fighter(game.dummy, this.dummyAtlas, game.tick);
     this.effect(game.player, this.playerAtlas); this.effect(game.dummy, this.dummyAtlas);
     this.projectiles(game);
     this.readyEffect(game.player, this.playerAtlas); this.readyEffect(game.dummy, this.dummyAtlas);
+    ctx.restore();
     this.stunLabel(game.player); this.stunLabel(game.dummy);
     this.fighterLabel(game.player, 'P1', '#fff');
     this.fighterLabel(game.dummy, 'P2', '#d6d6d6');
@@ -63,11 +66,12 @@ export class Renderer {
   private background(): void {
     const c = this.ctx;
     c.fillStyle = '#f5f5f5'; c.fillRect(0, 0, W, H);
-    c.fillStyle = '#aaa'; c.fillRect(18, 186, W - 36, STAGE.floor - 186);
-    c.strokeStyle = '#333'; c.lineWidth = 2; c.strokeRect(18, 186, W - 36, STAGE.floor - 186);
-    c.fillStyle = '#e8e8e8'; c.fillRect(0, STAGE.floor, W, H - STAGE.floor);
+    const floor = STAGE.floor * WORLD_SCALE;
+    c.fillStyle = '#aaa'; c.fillRect(18, 186, W - 36, floor - 186);
+    c.strokeStyle = '#333'; c.lineWidth = 2; c.strokeRect(18, 186, W - 36, floor - 186);
+    c.fillStyle = '#e8e8e8'; c.fillRect(0, floor, W, H - floor);
     c.strokeStyle = '#222'; c.lineWidth = 3;
-    c.beginPath(); c.moveTo(0, STAGE.floor); c.lineTo(W, STAGE.floor); c.stroke();
+    c.beginPath(); c.moveTo(0, floor); c.lineTo(W, floor); c.stroke();
   }
 
   private shadow(f: Fighter): void {
@@ -93,8 +97,8 @@ export class Renderer {
 
   private fighterLabel(f: Fighter, label: string, color: string): void {
     const c = this.ctx;
-    const x = f.x;
-    const y = f.y - f.data.height - 32;
+    const x = f.x * WORLD_SCALE;
+    const y = (f.y - f.data.height) * WORLD_SCALE - 32;
     c.save();
     c.fillStyle = color; c.fillRect(x - 19, y - 11, 38, 23);
     c.strokeStyle = '#111'; c.lineWidth = 2; c.strokeRect(x - 19, y - 11, 38, 23);
@@ -177,9 +181,10 @@ export class Renderer {
     if (fighter.stunTicks <= 0) return;
     const c = this.ctx;
     c.save(); c.textAlign = 'center'; c.font = '800 12px system-ui, sans-serif';
-    c.fillStyle = '#fff'; c.fillRect(fighter.x - 25, fighter.y - fighter.data.height - 62, 50, 20);
-    c.strokeStyle = '#111'; c.lineWidth = 1; c.strokeRect(fighter.x - 25, fighter.y - fighter.data.height - 62, 50, 20);
-    c.fillStyle = '#111'; c.fillText('기절', fighter.x, fighter.y - fighter.data.height - 47); c.restore();
+    const x = fighter.x * WORLD_SCALE, y = (fighter.y - fighter.data.height) * WORLD_SCALE - 62;
+    c.fillStyle = '#fff'; c.fillRect(x - 25, y, 50, 20);
+    c.strokeStyle = '#111'; c.lineWidth = 1; c.strokeRect(x - 25, y, 50, 20);
+    c.fillStyle = '#111'; c.fillText('기절', x, y + 15); c.restore();
   }
 
   private hud(game: Game, online: boolean, viewerSide: 0 | 1): void {
@@ -197,6 +202,9 @@ export class Renderer {
       const round = game.roundWins[0] + game.roundWins[1] + (game.winner ? 0 : 1);
       c.font = '700 13px system-ui, sans-serif';
       c.fillText(`ROUND ${round} · P1 ${game.roundWins[0]} : ${game.roundWins[1]} P2`, 480, 37);
+    } else {
+      c.font = '700 10px system-ui, sans-serif';
+      c.fillText('R 재시작 · Esc 나가기', 480, 105);
     }
     c.font = '700 12px system-ui, sans-serif';
     c.fillText(`HP ${game.player.hp} · 기력 ${Math.ceil(game.player.stamina)}${ultimateStatus(game.player) ? ` · ${ultimateStatus(game.player)}` : ''}`, 213, 105);
@@ -217,24 +225,33 @@ export class Renderer {
     const moves = fighter.data.moves;
     if (!moves.length) return;
     const c = this.ctx;
-    const gap = 8;
-    const width = Math.min(178, (W - 36 - gap * (moves.length - 1)) / moves.length);
+    const gap = 6;
+    const width = Math.min(118, (W - 36 - gap * (moves.length - 1)) / moves.length);
+    const height = 40;
     const total = width * moves.length + gap * (moves.length - 1);
     const startX = (W - total) / 2;
     c.save();
     c.textBaseline = 'middle';
     moves.forEach((move, index) => {
-      const x = startX + index * (width + gap), y = 468;
+      const x = startX + index * (width + gap), y = 493;
       const state = skillStatus(fighter, move, tick);
-      c.fillStyle = state.available ? '#fff' : '#d2d2d2'; c.fillRect(x, y, width, 58);
-      c.strokeStyle = state.available ? '#111' : '#777'; c.lineWidth = state.available ? 2 : 1; c.strokeRect(x, y, width, 58);
-      c.fillStyle = state.available ? '#111' : '#777'; c.fillRect(x + 7, y + 8, 52, 21);
-      c.fillStyle = state.available ? '#fff' : '#eee'; c.font = '800 11px system-ui, sans-serif'; c.textAlign = 'center';
-      c.fillText(this.commandLabel(move), x + 33, y + 19);
-      c.fillStyle = state.available ? '#111' : '#666'; c.font = '800 13px system-ui, sans-serif'; c.textAlign = 'left';
-      c.fillText(move.label, x + 66, y + 19, Math.max(20, width - 72));
+      const dimmed = ['ko', 'stun', 'hurt', 'stamina', 'condition'].includes(state.reason);
+      c.globalAlpha = dimmed ? 0.42 : 1;
+      c.fillStyle = '#fff'; c.fillRect(x, y, width, height);
+      c.strokeStyle = '#111'; c.lineWidth = state.reason === 'active' ? 2 : 1; c.strokeRect(x, y, width, height);
+      c.fillStyle = '#111'; c.fillRect(x + 5, y + 5, 35, 15);
+      c.fillStyle = '#fff'; c.font = '800 9px system-ui, sans-serif'; c.textAlign = 'center';
+      c.fillText(this.commandLabel(move), x + 22.5, y + 12.5);
+      c.fillStyle = '#111'; c.font = '800 10px system-ui, sans-serif'; c.textAlign = 'left';
+      c.fillText(move.label, x + 46, y + 13, Math.max(18, width - 51));
       const cost = move.kind === 'guard' ? `초당 ${move.guardStaminaPerSecond ?? 0}` : `기력 ${move.staminaCost}`;
-      c.font = '700 11px system-ui, sans-serif'; c.fillText(`${state.label} · ${cost}`, x + 8, y + 43, width - 16);
+      c.font = '700 9px system-ui, sans-serif'; c.fillText(`${state.label} · ${cost}`, x + 5, y + 30, width - 10);
+      c.globalAlpha = 1;
+      if (state.reason === 'cooldown' && (move.cooldown ?? 0) > 0) {
+        const ratio = Math.min(1, state.remainingTicks / (move.cooldown ?? 1));
+        c.fillStyle = '#555'; c.globalAlpha = 0.48; c.fillRect(x, y, width * ratio, height); c.globalAlpha = 1;
+        c.strokeStyle = '#111'; c.lineWidth = 1; c.strokeRect(x, y, width, height);
+      }
     });
     c.restore();
   }
@@ -271,7 +288,7 @@ export class Renderer {
     if (online) {
       c.fillText(`P1 ${game.roundWins[0]} : ${game.roundWins[1]} P2`, 480, 337);
       c.fillText(game.roundWins.includes(2) ? '3초 후 캐릭터 선택' : '3초 후 다음 라운드', 480, 369);
-    } else c.fillText('다시 시작 버튼을 누르세요', 480, 339);
+    } else c.fillText('R 키로 다시 시작', 480, 339);
     c.textAlign = 'left';
   }
 }

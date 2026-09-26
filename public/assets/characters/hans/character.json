@@ -38,7 +38,7 @@
   "skills": [
     {
       "skillId": "Shift", "label": "방어", "kind": "guard", "staminaCost": 0,
-      "guardStaminaPerSecond": 10, "damageReduction": 0.25, "cooldownSeconds": 0,
+      "guardStaminaPerSecond": 30, "damageReduction": 0.25, "cooldownSeconds": 0,
       "characterAnimations": [{ "id": "f26e7f1e-f454-4f0c-a168-f8a442611033", "name": "방어", "loop": false }],
       "effectAnimations": []
     },
@@ -59,7 +59,7 @@
     },
     {
       "skillId": "Move",
-      "characterAnimations": [{ "id": "cb47a083-5626-4414-aaf5-b099ebb312ff", "name": "Move", "loop": false }],
+      "characterAnimations": [{ "id": "cb47a083-5626-4414-aaf5-b099ebb312ff", "name": "Move", "loop": true }],
       "effectAnimations": []
     },
     {
@@ -79,7 +79,7 @@
     {
       "skillId": "P",
       "characterAnimations": [],
-      "effectAnimations": [{ "id": "98e33aeb-f070-4092-901b-7d99297c99f5", "name": "effect_2", "loop": false, "startFrame": 0 }]
+      "effectAnimations": [{ "id": "98e33aeb-f070-4092-901b-7d99297c99f5", "name": "effect_2", "loop": true, "startFrame": 0 }]
     }
   ]
 }

@@ -35,7 +35,7 @@ test('only hans is registered with five skills, critical passive, and a conditio
   const thrust = hans.moves.find(move => move.id === 'D')!;
   assert.deepEqual({ startup: thrust.startup, cooldown: thrust.cooldown, reach: thrust.reach }, { startup: 10, cooldown: 120, reach: 90 });
   const guard = hans.moves.find(move => move.id === 'Shift')!;
-  assert.deepEqual({ kind: guard.kind, drain: guard.guardStaminaPerSecond, reduction: guard.damageReduction }, { kind: 'guard', drain: 10, reduction: 0.25 });
+  assert.deepEqual({ kind: guard.kind, drain: guard.guardStaminaPerSecond, reduction: guard.damageReduction }, { kind: 'guard', drain: 30, reduction: 0.25 });
   const ultimate = hans.moves.find(move => move.id === 'Space')!;
   assert.deepEqual(ultimate.projectile, { width: 90, height: 80, speed: 8, lifetime: 120 });
   assert.equal(ultimate.damage, 30);
@@ -44,7 +44,7 @@ test('only hans is registered with five skills, critical passive, and a conditio
   assert.equal(game.player.hp, hans.maxHp);
   assert.equal(game.dummy.hp, hans.maxHp);
   game.update({ ...emptyInput(), right: true });
-  assert.equal(game.player.x, 286 + hans.walkSpeed);
+  assert.equal(game.player.x, 572 + hans.walkSpeed);
   game.update({ ...emptyInput(), attacks: [{ button: 'S', horizontal: 0, up: false, down: false }] });
   assert.equal(game.player.attack?.move.id, 'S');
   game.restart();
@@ -94,7 +94,7 @@ test('hans guard drains stamina and reduces incoming damage by 25 percent', asyn
   for (let i = 0; i < 9; i++) game.updateOnline(guard, emptyInput());
   assert.equal(game.player.hp, 92);
   assert.equal(game.player.state, 'guard');
-  assert.ok(game.player.stamina > 98.3 && game.player.stamina < 98.4);
+  assert.equal(game.player.stamina, 95);
 });
 
 test('S stuns, attacks against an active stun deal 50 percent more damage, and the third hit plays P', async () => {
@@ -122,6 +122,8 @@ test('S stuns, attacks against an active stun deal 50 percent more damage, and t
   assert.equal(game.player.ultimateReadyEffectTick, 0);
 
   for (let i = 0; i < 15; i++) game.update(emptyInput());
+  for (let i = 0; i < 40; i++) game.update(emptyInput());
+  assert.notEqual(game.player.ultimateReadyEffectTick, null, 'P effect repeats while the ultimate remains ready');
   game.dummy.x = 700;
   use('Space');
   assert.equal(game.player.ultimateProgress, 0);
@@ -138,15 +140,16 @@ test('in-game skill status distinguishes ready, cooldown, resource, condition, a
   const game = new Game(hans, hans);
   const slash = hans.moves.find(move => move.id === 'A')!;
   const ultimate = hans.moves.find(move => move.id === 'Space')!;
-  assert.deepEqual(skillStatus(game.player, slash, game.tick), { available: true, label: '사용 가능', remainingTicks: 0 });
+  assert.deepEqual(skillStatus(game.player, slash, game.tick), { available: true, label: '사용 가능', remainingTicks: 0, reason: 'ready' });
   assert.equal(skillStatus(game.player, ultimate, game.tick).label, '조건 0/3');
   game.player.cooldowns.A = game.tick + 61;
-  assert.deepEqual(skillStatus(game.player, slash, game.tick), { available: false, label: '쿨 1.1초', remainingTicks: 61 });
+  assert.deepEqual(skillStatus(game.player, slash, game.tick), { available: false, label: '쿨 1.1초', remainingTicks: 61, reason: 'cooldown' });
   game.player.cooldowns.A = 0; game.player.stamina = 0;
   assert.equal(skillStatus(game.player, slash, game.tick).label, '기력 부족');
   game.player.stamina = hans.maxStamina;
   game.update({ ...emptyInput(), attacks: [{ button: 'A', horizontal: 0, up: false, down: false }] });
   assert.equal(skillStatus(game.player, slash, game.tick).label, '사용 중');
+  assert.equal(skillStatus(game.player, hans.moves.find(move => move.id === 'S')!, game.tick).reason, 'busy');
 });
 
 test('hans v3 atlas provides all body, projectile, and ultimate-ready effect frames', async () => {
@@ -161,6 +164,8 @@ test('hans v3 atlas provides all body, projectile, and ultimate-ready effect fra
   assert.ok(atlas.characterAnimations.some(animation => animation.skillId === 'Space' && animation.frames.length > 0));
   assert.ok(atlas.effectAnimations.some(animation => animation.skillId === 'Space' && animation.frames.length === 4));
   assert.ok(atlas.effectAnimations.some(animation => animation.skillId === 'P' && animation.frames.length === 8));
+  assert.equal(atlas.characterAnimations.find(animation => animation.skillId === 'Move')?.loop, true);
+  assert.equal(atlas.effectAnimations.find(animation => animation.skillId === 'P')?.loop, true);
   assert.ok(atlas.characterAnimations.every(animation => !['guard', 'crouch', 'jab'].includes(animation.skillId ?? '')));
   const layoutAtlas = { definition: atlas, characters: new Map(), effects: new Map() };
   assert.equal(animationScale(layoutAtlas, 'idle', 92), 2);
