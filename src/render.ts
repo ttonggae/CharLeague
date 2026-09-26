@@ -13,7 +13,7 @@ export type SkillStatusReason = 'ready' | 'active' | 'cooldown' | 'ko' | 'stun' 
 export interface SkillStatus { available: boolean; label: string; remainingTicks: number; reason: SkillStatusReason }
 
 export function isSkillStatusDimmed(reason: SkillStatusReason): boolean {
-  return ['ko', 'stun', 'hurt', 'busy', 'stamina', 'condition'].includes(reason);
+  return ['ko', 'stun', 'hurt', 'stamina', 'condition'].includes(reason);
 }
 
 export function skillStatus(fighter: Fighter, move: MoveData, tick: number): SkillStatus {
@@ -24,13 +24,13 @@ export function skillStatus(fighter: Fighter, move: MoveData, tick: number): Ski
   if (fighter.hp <= 0) return { available: false, label: 'K.O.', remainingTicks: 0, reason: 'ko' };
   if (fighter.stunTicks > 0) return { available: false, label: '기절 중', remainingTicks: 0, reason: 'stun' };
   if (fighter.hurtTicks > 0) return { available: false, label: '피격 중', remainingTicks: 0, reason: 'hurt' };
-  if (fighter.attack) return { available: false, label: '행동 중', remainingTicks: 0, reason: 'busy' };
   if (move.kind === 'guard' && fighter.stamina <= 0) return { available: false, label: '기력 부족', remainingTicks: 0, reason: 'stamina' };
   if (fighter.stamina < move.staminaCost) return { available: false, label: '기력 부족', remainingTicks: 0, reason: 'stamina' };
   if (isUltimateMove(fighter, move) && !isUltimateReady(fighter)) {
     const target = fighter.data.ultimate?.condition.target ?? 0;
     return { available: false, label: `조건 ${Math.floor(fighter.ultimateProgress)}/${target}`, remainingTicks: 0, reason: 'condition' };
   }
+  if (fighter.attack) return { available: false, label: '입력 가능', remainingTicks: 0, reason: 'busy' };
   return { available: true, label: '사용 가능', remainingTicks: 0, reason: 'ready' };
 }
 

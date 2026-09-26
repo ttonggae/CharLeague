@@ -160,8 +160,10 @@ test('in-game skill status distinguishes ready, cooldown, resource, condition, a
   assert.equal(skillStatus(game.player, slash, game.tick).label, '사용 중');
   const busy = skillStatus(game.player, hans.moves.find(move => move.id === 'S')!, game.tick);
   assert.equal(busy.reason, 'busy');
-  assert.equal(isSkillStatusDimmed(busy.reason), true, 'other skills are dimmed while one skill is active');
+  assert.equal(busy.label, '입력 가능');
+  assert.equal(isSkillStatusDimmed(busy.reason), false, 'a buffered skill stays bright while another skill is active');
   assert.equal(isSkillStatusDimmed(skillStatus(game.player, slash, game.tick).reason), false, 'the active skill remains highlighted');
+  assert.equal(isSkillStatusDimmed(skillStatus(game.player, ultimate, game.tick).reason), true, 'an unmet ultimate condition stays dimmed during another skill');
 });
 
 test('hans v3 atlas provides all body, projectile, and ultimate-ready effect frames', async () => {
