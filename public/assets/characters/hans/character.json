@@ -10,29 +10,7 @@
   "ticksPerAnimationFrame": 5,
   "skills": [
     {
-      "skillId": "guard",
-      "characterAnimations": [
-        {
-          "id": "f26e7f1e-f454-4f0c-a168-f8a442611033",
-          "name": "방어",
-          "loop": false
-        }
-      ],
-      "effectAnimations": []
-    },
-    {
-      "skillId": "crouch",
-      "characterAnimations": [
-        {
-          "id": "199f53ce-063c-41df-ad90-1918d8c5b76f",
-          "name": "앉기",
-          "loop": false
-        }
-      ],
-      "effectAnimations": []
-    },
-    {
-      "skillId": "jab",
+      "skillId": "A",
       "startupFrames": 3,
       "cooldown": 6,
       "characterAnimations": [

@@ -25,7 +25,7 @@
   },
   "skillLinks": [
     {
-      "skillId": "guard",
+      "skillId": null,
       "characterAnimations": [
         {
           "id": "f26e7f1e-f454-4f0c-a168-f8a442611033",
@@ -36,7 +36,7 @@
       "effectAnimations": []
     },
     {
-      "skillId": "crouch",
+      "skillId": null,
       "characterAnimations": [
         {
           "id": "199f53ce-063c-41df-ad90-1918d8c5b76f",
@@ -47,7 +47,7 @@
       "effectAnimations": []
     },
     {
-      "skillId": "jab",
+      "skillId": "A",
       "characterAnimations": [
         {
           "id": "94680f9d-494d-4df0-9b76-d46d3836c8ac",
@@ -478,7 +478,7 @@
     },
     {
       "id": "f26e7f1e-f454-4f0c-a168-f8a442611033",
-      "skillId": "guard",
+      "skillId": null,
       "name": "방어",
       "fps": 12,
       "loop": false,
@@ -521,7 +521,7 @@
     },
     {
       "id": "199f53ce-063c-41df-ad90-1918d8c5b76f",
-      "skillId": "crouch",
+      "skillId": null,
       "name": "앉기",
       "fps": 12,
       "loop": false,
@@ -564,7 +564,7 @@
     },
     {
       "id": "94680f9d-494d-4df0-9b76-d46d3836c8ac",
-      "skillId": "jab",
+      "skillId": "A",
       "name": "베기",
       "fps": 12,
       "loop": false,

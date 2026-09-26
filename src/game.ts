@@ -1,4 +1,4 @@
-import { COMBO_WINDOW, DASH_COOLDOWN, DOUBLE_TAP_WINDOW, INPUT_BUFFER, STAGE, TICK_RATE, dummyData, playerData, type Button, type CharacterData, type FighterState, type MoveData } from './data.ts';
+import { COMBO_WINDOW, INPUT_BUFFER, STAGE, TICK_RATE, dummyData, playerData, type Button, type CharacterData, type FighterState, type MoveData } from './data.ts';
 import type { AttackPress, InputFrame } from './input.ts';
 
 export type DummyMode = 'attack' | 'guard' | 'idle';
@@ -6,23 +6,21 @@ export interface ActiveAttack { move: MoveData; tick: number; hit: boolean }
 export interface Fighter {
   data: CharacterData;
   x: number; y: number; vx: number; vy: number; facing: -1 | 1;
-  hp: number; state: FighterState; crouching: boolean; guarding: boolean;
-  hurtTicks: number; dashTicks: number; attackCooldownUntilTick: number; attack: ActiveAttack | null;
+  hp: number; state: FighterState; guarding: boolean;
+  hurtTicks: number; attackCooldownUntilTick: number; attack: ActiveAttack | null;
 }
 interface BufferedPress extends AttackPress { tick: number; facing: -1 | 1 }
 interface ComboPress { button: Button; tick: number }
 interface ControlMemory {
   pending: BufferedPress[];
   history: ComboPress[];
-  lastTap: Record<-1 | 1, number>;
-  lastDashTick: number;
 }
-const controlMemory = (): ControlMemory => ({ pending: [], history: [], lastTap: { [-1]: -999, [1]: -999 }, lastDashTick: -999 });
+const controlMemory = (): ControlMemory => ({ pending: [], history: [] });
 
 export interface FighterSnapshot {
   x: number; y: number; vx: number; vy: number; facing: -1 | 1; hp: number;
-  state: FighterState; crouching: boolean; guarding: boolean; hurtTicks: number;
-  dashTicks: number; attackCooldownUntilTick: number;
+  state: FighterState; guarding: boolean; hurtTicks: number;
+  attackCooldownUntilTick: number;
   attack: { moveId: string; tick: number; hit: boolean } | null;
 }
 export interface GameSnapshot {
@@ -33,7 +31,7 @@ export interface GameSnapshot {
 }
 
 function fighter(data: CharacterData, x: number, facing: -1 | 1): Fighter {
-  return { data, x, y: STAGE.floor, vx: 0, vy: 0, facing, hp: data.maxHp, state: 'idle', crouching: false, guarding: false, hurtTicks: 0, dashTicks: 0, attackCooldownUntilTick: 0, attack: null };
+  return { data, x, y: STAGE.floor, vx: 0, vy: 0, facing, hp: data.maxHp, state: 'idle', guarding: false, hurtTicks: 0, attackCooldownUntilTick: 0, attack: null };
 }
 function clamp(value: number, min: number, max: number): number { return Math.max(min, Math.min(max, value)); }
 
@@ -86,7 +84,6 @@ export class Game {
   }
 
   update(input: InputFrame): void {
-    if (input.restart) this.restart();
     if (this.winner) return;
     this.beginTick();
     this.applyControlledInput(this.player, input, this.controls[0]);
@@ -135,26 +132,16 @@ export class Game {
   private canMove(f: Fighter): boolean { return f.hp > 0 && f.hurtTicks === 0 && !f.attack; }
 
   private applyControlledInput(f: Fighter, input: InputFrame, control: ControlMemory): void {
-    const horizontal = Number(input.right) - Number(input.left) || input.taps.at(-1) || 0;
-    if (horizontal !== 0 && !input.down && !input.guard && this.canMove(f)) f.facing = horizontal as -1 | 1;
-    for (const tap of input.taps) {
-      if (this.tick - control.lastTap[tap] <= DOUBLE_TAP_WINDOW && this.tick - control.lastDashTick >= DASH_COOLDOWN && this.canMove(f)) {
-        f.dashTicks = 10;
-        f.vx = tap * f.data.dashSpeed;
-        f.facing = tap;
-        control.lastDashTick = this.tick;
-      }
-      control.lastTap[tap] = this.tick;
-    }
+    const horizontal = Number(input.right) - Number(input.left);
+    if (horizontal !== 0 && this.canMove(f)) f.facing = horizontal as -1 | 1;
     for (const press of input.attacks) {
       control.pending.push({ ...press, tick: this.tick, facing: f.facing });
       control.history.push({ button: press.button, tick: this.tick });
     }
-    f.crouching = input.down && f.y >= STAGE.floor && !f.attack && !f.hurtTicks;
-    f.guarding = input.guard && this.canMove(f) && f.y >= STAGE.floor;
+    f.guarding = false;
     if (this.canMove(f) && !f.guarding) {
-      if (input.up && f.y >= STAGE.floor && !f.crouching) f.vy = -f.data.jumpSpeed;
-      if (f.dashTicks === 0) f.vx = f.crouching ? 0 : horizontal * f.data.walkSpeed;
+      if (input.up && f.y >= STAGE.floor) f.vy = -f.data.jumpSpeed;
+      f.vx = horizontal * f.data.walkSpeed;
     } else if (!f.attack && f.hurtTicks === 0) f.vx = 0;
     this.tryBufferedAttack(f, control);
   }
@@ -170,7 +157,6 @@ export class Game {
     if ((current && !canCancel) || this.tick < f.attackCooldownUntilTick) return;
     if (move) {
       this.startAttack(f, move);
-      f.dashTicks = 0;
       this.say(move.label);
     }
     control.pending.shift();
@@ -212,9 +198,6 @@ export class Game {
     if (f.hurtTicks > 0) {
       f.hurtTicks--;
       f.vx *= 0.88;
-    } else if (f.dashTicks > 0) {
-      f.dashTicks--;
-      if (f.dashTicks === 0) f.vx = 0;
     }
     if (f.attack) {
       f.attack.tick++;
@@ -259,7 +242,6 @@ export class Game {
     if (!blocked) {
       defender.vy = move.knockback.y;
       defender.attack = null;
-      defender.dashTicks = 0;
       defender.hurtTicks = move.hitstun;
       defender.guarding = false;
     }
@@ -288,8 +270,8 @@ export class Game {
   snapshot(): GameSnapshot {
     const save = (f: Fighter): FighterSnapshot => ({
       x: f.x, y: f.y, vx: f.vx, vy: f.vy, facing: f.facing, hp: f.hp,
-      state: f.state, crouching: f.crouching, guarding: f.guarding,
-      hurtTicks: f.hurtTicks, dashTicks: f.dashTicks,
+      state: f.state, guarding: f.guarding,
+      hurtTicks: f.hurtTicks,
       attackCooldownUntilTick: f.attackCooldownUntilTick,
       attack: f.attack ? { moveId: f.attack.move.id, tick: f.attack.tick, hit: f.attack.hit } : null
     });
@@ -307,8 +289,8 @@ export class Game {
       if (saved.attack && !move) throw new Error(`알 수 없는 기술 ID: ${saved.attack.moveId}`);
       return { data, x: saved.x, y: saved.y, vx: saved.vx, vy: saved.vy,
         facing: saved.facing, hp: saved.hp, state: saved.state,
-        crouching: saved.crouching, guarding: saved.guarding,
-        hurtTicks: saved.hurtTicks, dashTicks: saved.dashTicks,
+        guarding: saved.guarding,
+        hurtTicks: saved.hurtTicks,
         attackCooldownUntilTick: saved.attackCooldownUntilTick,
         attack: saved.attack && move ? { move, tick: saved.attack.tick, hit: saved.attack.hit } : null };
     };
@@ -325,4 +307,4 @@ export class Game {
   private say(message: string): void { this.notice = message; this.noticeTick = this.tick; }
 }
 
-export const emptyInput = (): InputFrame => ({ left: false, right: false, up: false, down: false, guard: false, taps: [], attacks: [], restart: false });
+export const emptyInput = (): InputFrame => ({ left: false, right: false, up: false, down: false, attacks: [] });

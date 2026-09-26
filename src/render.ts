@@ -84,8 +84,7 @@ export class Renderer {
     const fill = '#777';
     const dark = '#222';
     const lit = '#eee';
-    const crouch = f.crouching || (f.guarding && f.crouching);
-    const h = crouch ? 62 : f.data.height;
+    const h = f.data.height;
     const bob = f.state === 'idle' ? Math.floor(tick / (TICK_RATE / ANIMATION_FPS)) % 2 : 0;
     c.save(); c.translate(f.x, f.y - bob); c.scale(f.facing, 1);
     if (f.state === 'hurt') c.globalAlpha = Math.floor(tick / 3) % 2 ? 0.52 : 1;
@@ -167,7 +166,7 @@ export class Renderer {
     if (online) {
       c.fillText(`P1 ${game.roundWins[0]} : ${game.roundWins[1]} P2`, 480, 337);
       c.fillText(game.roundWins.includes(2) ? '3초 후 캐릭터 선택' : '3초 후 다음 라운드', 480, 369);
-    } else c.fillText('R 또는 다시 시작 버튼을 누르세요', 480, 339);
+    } else c.fillText('다시 시작 버튼을 누르세요', 480, 339);
     c.textAlign = 'left';
   }
 }

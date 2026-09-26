@@ -9,13 +9,19 @@ import type { InputFrame } from '../src/input.ts';
 const hansRaw = JSON.parse(await readFile(new URL('../public/assets/characters/hans/character.json', import.meta.url), 'utf8'));
 const hans = parseCharacter(hansRaw, 'hans');
 
-test('packed input preserves held controls, taps, and attack direction', () => {
-  const input: InputFrame = { ...emptyInput(), left: true, up: true, guard: true, taps: [-1],
-    attacks: [{ button: 'A', horizontal: -1, up: true, down: false }, { button: 'S', horizontal: 1, up: false, down: true }] };
-  assert.deepEqual(unpackInput(packInput(input)), { ...input, restart: false });
-  assert.equal(validInputBits(1 << 23), false);
+test('packed input preserves movement and all five skill inputs', () => {
+  const input: InputFrame = { ...emptyInput(), left: true, up: true,
+    attacks: [
+      { button: 'A', horizontal: -1, up: true, down: false },
+      { button: 'S', horizontal: 1, up: false, down: true },
+      { button: 'D', horizontal: 0, up: false, down: false },
+      { button: 'Shift', horizontal: -1, up: false, down: false },
+      { button: 'Space', horizontal: 1, up: true, down: false }
+    ] };
+  assert.deepEqual(unpackInput(packInput(input)), input);
+  assert.equal(validInputBits(1 << 29), false);
   assert.equal(parseInputPacket({ kind: 'input', frame: -1, bits: 0 }), null);
-  assert.equal(parseInputPacket({ kind: 'input', frame: 4, bits: 1 << 23 }), null);
+  assert.equal(parseInputPacket({ kind: 'input', frame: 4, bits: 1 << 29 }), null);
   assert.equal(tokenFromFragment('#duel=' + 'a'.repeat(48)), 'a'.repeat(48));
   assert.equal(tokenFromFragment('#duel=short'), null);
 });
@@ -36,7 +42,7 @@ test('two lockstep games exchange frame inputs and repair only after a hash mism
   });
   for (let i = 0; i < 125; i++) {
     const p1 = { ...emptyInput(), right: i < 15, attacks: i === 30 ? [{ button: 'A' as const, horizontal: 0 as const, up: false, down: false }] : [] };
-    const p2 = { ...emptyInput(), left: i < 15, guard: i >= 30 && i < 50 };
+    const p2 = { ...emptyInput(), left: i < 15 };
     host.capture(p1); guest.capture(p2);
     host.advance(1); guest.advance(1);
     if (i === 68) guestGame.player.hp--;

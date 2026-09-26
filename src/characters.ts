@@ -1,5 +1,5 @@
 import { hasAnimation, loadAtlas, type LoadedAtlas } from './atlas.ts';
-import { ACTION_IDS, ANIMATION_FPS, ATTACK_IDS, TICK_RATE, dummyData, playerData, type Button, type CharacterData, type Direction, type MoveData } from './data.ts';
+import { ANIMATION_FPS, ATTACK_IDS, TICK_RATE, dummyData, playerData, type Button, type CharacterData, type Direction, type MoveData } from './data.ts';
 
 const ROOT = `${import.meta.env?.BASE_URL ?? '/'}assets/characters/`;
 const object = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -39,10 +39,12 @@ export function parseCharacter(raw: unknown, id: string): CharacterData & { atla
   const moves: MoveData[] = raw.moves.map((value, index) => {
     const prefix = `moves[${index}]`;
     if (!object(value)) throw new Error(`${prefix}: 객체가 필요합니다`);
-    if (!Array.isArray(value.sequence) || value.sequence.length === 0 || !value.sequence.every(key => ['A', 'S', 'D'].includes(key))) throw new Error(`${prefix}.sequence: A/S/D 배열이 필요합니다`);
+    if (!Array.isArray(value.sequence) || value.sequence.length === 0 || !value.sequence.every(key => ATTACK_IDS.includes(key as Button))) throw new Error(`${prefix}.sequence: A/S/D/Shift/Space 배열이 필요합니다`);
     if (!['any', 'forward', 'back', 'up', 'down'].includes(String(value.direction))) throw new Error(`${prefix}.direction: 올바르지 않습니다`);
     if (!object(value.knockback)) throw new Error(`${prefix}.knockback: x/y가 필요합니다`);
-    const moveId = text(value.id, `${prefix}.id`);
+    const moveId = text(value.id, `${prefix}.id`) as Button;
+    if (!ATTACK_IDS.includes(moveId)) throw new Error(`${prefix}.id: A/S/D/Shift/Space 중 하나여야 합니다`);
+    if (value.sequence.at(-1) !== moveId) throw new Error(`${prefix}.sequence: 마지막 키는 기술 ID ${moveId}여야 합니다`);
     if (value.effect !== undefined && value.effect !== moveId) throw new Error(`${prefix}.effect: 기술 ID ${moveId}와 같아야 합니다`);
     return {
       id: moveId, label: text(value.label, `${prefix}.label`),
@@ -65,10 +67,10 @@ export function parseCharacter(raw: unknown, id: string): CharacterData & { atla
     id, name: text(raw.name, 'name'), description: text(raw.description, 'description'), color,
     portraitProvided: raw.portraitProvided !== false,
     maxHp: number(raw.maxHp, 'maxHp', 1), walkSpeed: number(raw.walkSpeed, 'walkSpeed'),
-    jumpSpeed: number(raw.jumpSpeed, 'jumpSpeed'), dashSpeed: number(raw.dashSpeed, 'dashSpeed'),
+    jumpSpeed: number(raw.jumpSpeed, 'jumpSpeed'),
     width: number(raw.width, 'width', 1), height: number(raw.height, 'height', 1),
     spriteScale: raw.spriteScale === undefined ? undefined : number(raw.spriteScale, 'spriteScale', 0.01),
-    dummyMoveId: typeof raw.dummyMoveId === 'string' ? raw.dummyMoveId : undefined,
+    dummyMoveId: ATTACK_IDS.includes(raw.dummyMoveId as Button) ? raw.dummyMoveId as Button : undefined,
     atlas: assetPath(raw.atlas, 'atlas'), portrait: assetPath(raw.portrait, 'portrait'), moves
   };
 }
@@ -82,7 +84,7 @@ function parseStudioCharacter(raw: Record<string, unknown>, id: string): Charact
   raw.skills.forEach((skill, index) => {
     if (!object(skill)) throw new Error(`skills[${index}]: 객체가 필요합니다`);
     const skillId = text(skill.skillId, `skills[${index}].skillId`);
-    if (!ATTACK_IDS.some(id => id === skillId) && skillId !== ACTION_IDS.guard && skillId !== ACTION_IDS.crouch) throw new Error(`skills[${index}].skillId: 등록되지 않은 조작 ID ${skillId}`);
+    if (!ATTACK_IDS.includes(skillId as Button)) throw new Error(`skills[${index}].skillId: A/S/D/Shift/Space 중 하나여야 합니다`);
     if (links.has(skillId)) throw new Error(`skills[${index}].skillId: 중복된 조작 ID ${skillId}`);
     if (skill.startup !== undefined && skill.startupFrames !== undefined) throw new Error(`skills[${index}]: startup과 startupFrames를 동시에 쓸 수 없습니다`);
     const body = Array.isArray(skill.characterAnimations) ? skill.characterAnimations[0] : null;

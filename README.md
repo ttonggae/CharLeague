@@ -30,33 +30,28 @@ pnpm dev
 
 | 입력 | 동작 |
 | --- | --- |
-| ← / → | 이동, 같은 방향을 14틱 이내 두 번 누르면 대시. 대시 재사용 대기시간 1초 |
-| ↑ / ↓ | 점프 / 앉기 |
-| Shift | 방어 |
-| A | 한스의 베기 (`jab`): 선딜 12FPS 애니메이션 3프레임(60Hz 판정 15틱), 공격 동작 종료 후 재사용 대기시간 6틱(0.1초) |
-| S / D | 현재 한스에게 등록된 기술 없음 |
-| R | 연습 모드 전투 재시작 |
-| C | 연습 모드에서 캐릭터 선택. 온라인 전투 중에는 동작하지 않음 |
-| 1 / 2 / 3 | 연습 모드 더미 반격 / 방어 / 대기 |
+| ← / → | 좌우 이동 |
+| ↑ | 점프 |
+| ↓ | 통과형 플랫폼 내려가기. 현재 평평한 바닥에서는 위치가 변하지 않음 |
+| A / S / D / Shift / Space | 캐릭터 데이터에 등록된 스킬 |
+
+대시와 앉기는 제거했습니다. 재시작, 캐릭터 변경, 더미 행동은 게임 화면의 버튼으로만 조작합니다.
 
 ### 통일된 조작 ID
 
-`src/data.ts`의 `ACTION_IDS`가 기준입니다. 현재 한스에게 등록된 공격 ID는 `jab` 하나이고, `guard`와 `crouch`는 동작 애니메이션입니다. 아래 나머지 공격 ID는 새 캐릭터에서 등록할 수 있는 조작 규격이며, 등록하지 않은 기술은 사용할 수 없습니다. 기술에는 같은 ID를 `character.json`의 `moves[].id`와 `effect`, Atlas Studio의 `skills[].skillId`, `atlas.json`의 애니메이션 `skillId`에 사용합니다.
+스킬 ID는 물리 키 이름과 같은 `A`, `S`, `D`, `Shift`, `Space` 다섯 개만 사용합니다. 등록하지 않은 스킬 키는 아무 동작도 하지 않습니다. 같은 ID를 `character.json`의 `moves[].id`와 `effect`, Atlas Studio의 `skills[].skillId`, `atlas.json`의 애니메이션 `skillId`에 사용합니다.
 
 | ID | 입력 또는 동작 |
 | --- | --- |
 | `move_left` / `move_right` | ← / → 이동 |
-| `jump` / `crouch` / `guard` | ↑ 점프 / ↓ 앉기 / Shift 방어 |
-| `dash_left` / `dash_right` | ←← / →→ 대시 |
-| `jab` / `step` | A 평타 / 전방 + A 전진타 |
-| `sweep` / `rising` | ↓ + S 하단 베기 / ↑ + D 상승타 |
-| `skill1` / `skill2` | S 스킬 1 / D 스킬 2 |
-| `chain` | A → A → S 연계 |
-| `counter` | 내장 연습 더미의 자동 반격 |
-| `restart` / `select_character` | R 재시작 / C 캐릭터 선택 |
-| `dummy_attack` / `dummy_guard` / `dummy_idle` | 1 반격 / 2 방어 / 3 대기 |
+| `jump` / `drop` | ↑ 점프 / ↓ 플랫폼 내려가기 |
+| `A` | A 스킬 |
+| `S` | S 스킬 |
+| `D` | D 스킬 |
+| `Shift` | Shift 스킬 |
+| `Space` | Space 스킬 |
 
-공격 입력은 15틱(0.25초) 동안 보관됩니다. 더미는 기본적으로 가까워지면 선택된 캐릭터의 `dummyMoveId` 기술로 반격합니다. 조작 가이드는 캐릭터 선택 화면에만 표시합니다. 전투를 시작하면 게임 캔버스가 브라우저 화면 전체를 채우며 브라우저 전체화면 전환을 강제하지 않습니다. F11 등으로 브라우저 전체화면을 켜거나 꺼도 전투가 계속됩니다. 연습 모드에서는 C로 캐릭터 선택 화면에 돌아갈 수 있습니다. 온라인 전투 중에는 나가기 조작이 없습니다. 연결이 끊긴 뒤에는 복구 화면에서 다시 연결하거나 메인 메뉴로 갈 수 있습니다.
+스킬 입력은 15틱(0.25초) 동안 보관됩니다. 더미는 기본적으로 가까워지면 선택된 캐릭터의 `dummyMoveId` 기술로 반격합니다. 조작 가이드는 캐릭터 선택 화면에만 표시합니다. 전투를 시작하면 게임 캔버스가 브라우저 화면 전체를 채우며 브라우저 전체화면 전환을 강제하지 않습니다. F11 등으로 브라우저 전체화면을 켜거나 꺼도 전투가 계속됩니다. 온라인 전투 중에는 나가기 조작이 없습니다. 연결이 끊긴 뒤에는 복구 화면에서 다시 연결하거나 메인 메뉴로 갈 수 있습니다.
 
 게임 상태와 판정은 고정 60Hz로 갱신합니다. 캐릭터와 효과 아틀라스는 기본 5틱마다 프레임을 바꿔 12FPS로 표시합니다. 아틀라스는 이미지 보간 없이 정수 배율로 그려 작은 도트 이미지의 경계를 유지합니다. 캐릭터는 이동 방향을 바라보고 멈추면 마지막 방향을 유지합니다. 공격 판정과 효과도 바라보는 방향을 따릅니다. 전투 중 머리 위의 P1/P2 표시는 방향과 관계없이 읽을 수 있습니다. 캐릭터 아틀라스 로딩에 실패했을 때만 임시 색상 박스를 그립니다.
 
@@ -88,30 +83,29 @@ ID는 영문, 숫자, `_`, `-`만 사용합니다. 아틀라스 시트가 여러
   "maxHp": 100,
   "walkSpeed": 4.1,
   "jumpSpeed": 13.4,
-  "dashSpeed": 9,
   "width": 42,
   "height": 92,
   "atlas": "atlas.json",
   "portrait": "portrait.png",
-  "dummyMoveId": "skill2",
+  "dummyMoveId": "A",
   "moves": [
     {
-      "id": "jab", "label": "평타", "sequence": ["A"], "direction": "any",
+      "id": "A", "label": "평타", "sequence": ["A"], "direction": "any",
       "startup": 5, "active": 4, "recovery": 10,
       "damage": 7, "chip": 1, "knockback": { "x": 3, "y": 0 },
       "hitstun": 11, "reach": 59, "height": 48,
-      "effect": "jab", "color": "#92efff",
-      "bodyAnimation": "jab", "effectAnimation": "jab"
+      "effect": "A", "color": "#92efff",
+      "bodyAnimation": "A", "effectAnimation": "A"
     }
   ]
 }
 ```
 
-기술 시간은 60Hz 틱, 속도와 거리는 게임 좌표 단위입니다. `direction`은 `any`, `forward`, `back`, `up`, `down` 중 하나입니다. 긴 입력 연계와 방향 조건 기술이 일반 기술보다 먼저 선택됩니다. `effect`는 기술 `id`와 같아야 하며 생략할 수 있습니다. `bodyAnimation`과 `effectAnimation`에는 통일된 기술 ID를 지정하고, 애니메이션을 공유한다면 공유할 기술 ID를 지정합니다. 생략하면 몸체는 `attack:<기술 id>`를, 효과는 기술 ID를 찾습니다. 몸체 애니메이션이 전체 캐릭터가 아니라 추가 파츠라면 `"bodyAnimationMode": "overlay"`를 지정해 idle 위에 겹쳐 그립니다. `spriteScale`을 설정하면 아틀라스 확대율을 직접 조정할 수 있습니다. 기본값은 `height / idle 원본 높이`를 올림한 정수 배율입니다. PNG의 원본 색상과 투명도를 그대로 사용하며 같은 캐릭터를 양쪽에 선택해도 변색하지 않습니다.
+기술 시간은 60Hz 틱, 속도와 거리는 게임 좌표 단위입니다. `id`는 `A`, `S`, `D`, `Shift`, `Space` 중 하나이며 `sequence`의 마지막 값도 같은 ID여야 합니다. `direction`은 `any`, `forward`, `back`, `up`, `down` 중 하나입니다. 긴 입력 연계와 방향 조건 기술이 일반 기술보다 먼저 선택됩니다. `effect`는 기술 `id`와 같아야 하며 생략할 수 있습니다. `bodyAnimation`과 `effectAnimation`에는 통일된 기술 ID를 지정합니다. 생략하면 몸체는 `attack:<기술 id>`를, 효과는 기술 ID를 찾습니다. 몸체 애니메이션이 전체 캐릭터가 아니라 추가 파츠라면 `"bodyAnimationMode": "overlay"`를 지정해 idle 위에 겹쳐 그립니다. `spriteScale`을 설정하면 아틀라스 확대율을 직접 조정할 수 있습니다. 기본값은 `height / idle 원본 높이`를 올림한 정수 배율입니다. PNG의 원본 색상과 투명도를 그대로 사용하며 같은 캐릭터를 양쪽에 선택해도 변색하지 않습니다.
 
 `atlas.json`은 Atlas Studio의 `schemaVersion: 2` 및 `schemaVersion: 3` 출력 형식을 지원합니다. `atlases.characters`, `atlases.effects`, `characterAnimations`, `effectAnimations`를 읽고 각 프레임의 `rect`, `trim`, `pivot`, `position`, `durationTicks`를 반영합니다. 캐릭터 시트와 효과 시트는 독립적으로 로드하고 재생합니다. `idle` 애니메이션은 선택 화면 미리보기에도 사용합니다. 현재 등록된 캐릭터는 `hans` 하나이며 양쪽 모두 선택할 수 있습니다.
 
-한스의 `character.json`처럼 `schemaVersion: 1`, `characterId`, `displayName`, `skills`를 사용하는 Atlas Studio 내보내기도 지원합니다. `skills[].skillId`에 등록된 공격만 전투 기술로 만들고, `guard`와 `crouch`는 방어·앉기 애니메이션으로 사용합니다. 공격 항목에 `startupFrames`를 적으면 `ticksPerAnimationFrame`으로 곱해 60Hz 판정 틱으로 변환합니다. `startup`, `active`, `recovery`, `cooldown`은 60Hz 기준 정수 틱이며, `startup`과 `startupFrames`는 둘 중 하나만 사용합니다. `cooldown`은 공격 동작 종료 후부터 계산합니다. 한스의 `jab`은 A로 베기 공격을 하며, 내보낸 효과 프레임이 없으므로 별도 기술 효과는 그리지 않습니다. 이 형식에는 체력·이동·피해량 필드가 없으므로 현재 기본 전투 수치를 적용합니다. 이 수치를 캐릭터마다 지정하려면 위의 게임용 `character.json` 형식을 사용하세요. `portraitProvided: false`이거나 초상화 이미지 로딩에 실패하면 선택 화면에 큰 X를 표시합니다.
+한스의 `character.json`처럼 `schemaVersion: 1`, `characterId`, `displayName`, `skills`를 사용하는 Atlas Studio 내보내기도 지원합니다. `skills[].skillId`에는 `A`, `S`, `D`, `Shift`, `Space`만 등록할 수 있습니다. 공격 항목에 `startupFrames`를 적으면 `ticksPerAnimationFrame`으로 곱해 60Hz 판정 틱으로 변환합니다. `startup`, `active`, `recovery`, `cooldown`은 60Hz 기준 정수 틱이며, `startup`과 `startupFrames`는 둘 중 하나만 사용합니다. `cooldown`은 공격 동작 종료 후부터 계산합니다. 한스의 `A`는 베기 공격이며, 내보낸 효과 프레임이 없으므로 별도 기술 효과는 그리지 않습니다. 이 형식에는 체력·이동·피해량 필드가 없으므로 현재 기본 전투 수치를 적용합니다. 이 수치를 캐릭터마다 지정하려면 위의 게임용 `character.json` 형식을 사용하세요. `portraitProvided: false`이거나 초상화 이미지 로딩에 실패하면 선택 화면에 큰 X를 표시합니다.
 
 등록된 폴더나 파일이 누락되거나 JSON 형식이 잘못되면 해당 경로와 원인을 선택 화면 및 브라우저 콘솔에 표시합니다. 다른 정상 캐릭터는 계속 선택할 수 있고, 이미지가 누락된 캐릭터는 임시 그래픽으로 전투합니다. 모든 등록 캐릭터를 사용할 수 없으면 내장 임시 캐릭터 두 명을 표시합니다.
 

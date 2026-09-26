@@ -156,5 +156,5 @@ export function animationGroundOffset(atlas: LoadedAtlas | null, key: string, sc
 
 export function fighterAnimation(f: Fighter): string {
   if (f.attack) return f.attack.move.bodyAnimation ?? `attack:${f.attack.move.id}`;
-  return f.crouching && f.state === 'idle' ? 'crouch' : f.state;
+  return f.state;
 }

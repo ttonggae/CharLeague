@@ -1,12 +1,12 @@
-import { TICK_RATE, type FighterState } from './data.ts';
+import { SKILL_IDS, TICK_RATE, type FighterState } from './data.ts';
 import type { InputFrame, AttackPress } from './input.ts';
 import { Game, emptyInput, type GameSnapshot } from './game.ts';
 import type { CharacterEntry } from './characters.ts';
 
-export const ONLINE_VERSION = 'grim-war-online-2';
+export const ONLINE_VERSION = 'grim-war-online-3';
 export const INPUT_DELAY = 3;
 const MAX_FRAME = 1_000_000_000;
-const INPUT_MASK = (1 << 23) - 1;
+const INPUT_MASK = (1 << 29) - 1;
 const object = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null && !Array.isArray(value);
 const integer = (value: unknown, min: number, max: number): value is number => Number.isInteger(value) && (value as number) >= min && (value as number) <= max;
 
@@ -38,28 +38,26 @@ export function inviteUrl(token: string): string {
   return url.href;
 }
 
-const attackButtons = ['A', 'S', 'D'] as const;
+const attackButtons = SKILL_IDS;
 function pressCode(press: AttackPress): number {
   return (press.horizontal === -1 ? 1 : press.horizontal === 1 ? 2 : 0) | (press.up ? 4 : 0) | (press.down ? 8 : 0);
 }
 
 export function packInput(input: InputFrame): number {
   let bits = Number(input.left) | (Number(input.right) << 1) | (Number(input.up) << 2)
-    | (Number(input.down) << 3) | (Number(input.guard) << 4);
-  if (input.taps.includes(-1)) bits |= 1 << 5;
-  if (input.taps.includes(1)) bits |= 1 << 6;
+    | (Number(input.down) << 3);
   for (let i = 0; i < attackButtons.length; i++) {
     const press = input.attacks.find(item => item.button === attackButtons[i]);
-    if (press) bits |= (1 << (7 + i)) | (pressCode(press) << (11 + i * 4));
+    if (press) bits |= (1 << (4 + i)) | (pressCode(press) << (9 + i * 4));
   }
   return bits;
 }
 
 export function validInputBits(bits: unknown): bits is number {
   if (!integer(bits, 0, INPUT_MASK)) return false;
-  for (let i = 0; i < 3; i++) {
-    const code = (bits >>> (11 + i * 4)) & 15;
-    if (code % 4 === 3 || (!(bits & (1 << (7 + i))) && code !== 0)) return false;
+  for (let i = 0; i < attackButtons.length; i++) {
+    const code = (bits >>> (9 + i * 4)) & 15;
+    if (code % 4 === 3 || (!(bits & (1 << (4 + i))) && code !== 0)) return false;
   }
   return true;
 }
@@ -68,11 +66,9 @@ export function unpackInput(bits: number): InputFrame {
   if (!validInputBits(bits)) throw new Error('잘못된 입력 비트');
   const frame = emptyInput();
   frame.left = !!(bits & 1); frame.right = !!(bits & 2);
-  frame.up = !!(bits & 4); frame.down = !!(bits & 8); frame.guard = !!(bits & 16);
-  if (bits & 32) frame.taps.push(-1);
-  if (bits & 64) frame.taps.push(1);
-  for (let i = 0; i < attackButtons.length; i++) if (bits & (1 << (7 + i))) {
-    const code = (bits >>> (11 + i * 4)) & 15;
+  frame.up = !!(bits & 4); frame.down = !!(bits & 8);
+  for (let i = 0; i < attackButtons.length; i++) if (bits & (1 << (4 + i))) {
+    const code = (bits >>> (9 + i * 4)) & 15;
     frame.attacks.push({ button: attackButtons[i], horizontal: code % 4 === 1 ? -1 : code % 4 === 2 ? 1 : 0,
       up: !!(code & 4), down: !!(code & 8) });
   }
@@ -96,8 +92,8 @@ function validFighter(raw: unknown, maxHp: number, moves: string[]): boolean {
   if (!object(raw)) return false;
   for (const key of ['x', 'y', 'vx', 'vy']) if (typeof raw[key] !== 'number' || !Number.isFinite(raw[key]) || Math.abs(raw[key]) > 10_000) return false;
   if (!integer(raw.hp, 0, maxHp) || (raw.facing !== -1 && raw.facing !== 1)
-    || !states.has(raw.state as FighterState) || typeof raw.crouching !== 'boolean' || typeof raw.guarding !== 'boolean'
-    || !integer(raw.hurtTicks, 0, 10_000) || !integer(raw.dashTicks, 0, 10_000)
+    || !states.has(raw.state as FighterState) || typeof raw.guarding !== 'boolean'
+    || !integer(raw.hurtTicks, 0, 10_000)
     || !integer(raw.attackCooldownUntilTick, 0, MAX_FRAME)) return false;
   return raw.attack === null || (object(raw.attack) && typeof raw.attack.moveId === 'string'
     && moves.includes(raw.attack.moveId) && integer(raw.attack.tick, 0, 10_000) && typeof raw.attack.hit === 'boolean');
@@ -105,13 +101,11 @@ function validFighter(raw: unknown, maxHp: number, moves: string[]): boolean {
 function validControls(raw: unknown): boolean {
   if (!Array.isArray(raw) || raw.length !== 2) return false;
   return raw.every(control => object(control) && Array.isArray(control.pending) && control.pending.length <= 64
-    && control.pending.every((press: unknown) => object(press) && ['A', 'S', 'D'].includes(String(press.button))
+    && control.pending.every((press: unknown) => object(press) && SKILL_IDS.includes(press.button as typeof SKILL_IDS[number])
       && integer(press.tick, 0, MAX_FRAME) && (press.facing === -1 || press.facing === 1)
       && [0, -1, 1].includes(press.horizontal as number) && typeof press.up === 'boolean' && typeof press.down === 'boolean')
     && Array.isArray(control.history) && control.history.length <= 128
-    && control.history.every((press: unknown) => object(press) && ['A', 'S', 'D'].includes(String(press.button)) && integer(press.tick, 0, MAX_FRAME))
-    && object(control.lastTap) && integer(control.lastTap['-1'], -1000, MAX_FRAME) && integer(control.lastTap['1'], -1000, MAX_FRAME)
-    && integer(control.lastDashTick, -1000, MAX_FRAME));
+    && control.history.every((press: unknown) => object(press) && SKILL_IDS.includes(press.button as typeof SKILL_IDS[number]) && integer(press.tick, 0, MAX_FRAME)));
 }
 export function parseSnapshotPacket(raw: unknown, game: Game): SnapshotPacket | null {
   if (!object(raw) || raw.kind !== 'snapshot' || !integer(raw.frame, 0, MAX_FRAME) || !object(raw.state)) return null;

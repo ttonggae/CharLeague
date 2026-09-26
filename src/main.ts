@@ -1,9 +1,9 @@
 import './style.css';
 import { animationGroundOffset, animationScale, drawAtlasFrame } from './atlas.ts';
 import { loadRoster, type CharacterEntry } from './characters.ts';
-import { ACTION_IDS, TICK_RATE } from './data.ts';
+import { TICK_RATE } from './data.ts';
 import { Game, type DummyMode } from './game.ts';
-import { KeyboardInput, KEY_ACTION_IDS } from './input.ts';
+import { KeyboardInput } from './input.ts';
 import { P2PConnection, type ConnectionState, type ControlPacket, type OnlineRole } from './network.ts';
 import { createInviteToken, inviteUrl, OnlineMatch, rosterVersion, tokenFromFragment, type InputPacket } from './online.ts';
 import { Renderer } from './render.ts';
@@ -337,14 +337,6 @@ function setDummyMode(dummyMode: DummyMode): void {
   document.querySelectorAll<HTMLButtonElement>('[data-mode]').forEach(item => item.classList.toggle('active', item.dataset.mode === dummyMode));
 }
 document.querySelectorAll<HTMLButtonElement>('[data-mode]').forEach(button => button.addEventListener('click', () => setDummyMode(button.dataset.mode as DummyMode)));
-window.addEventListener('keydown', event => {
-  if (!game || event.repeat) return;
-  const action = KEY_ACTION_IDS[event.code];
-  if (action === ACTION_IDS.selectCharacter && mode === 'local') { event.preventDefault(); hideArena(); enterLocal(); }
-  else if (action === ACTION_IDS.dummyAttack) setDummyMode('attack');
-  else if (action === ACTION_IDS.dummyGuard) setDummyMode('guard');
-  else if (action === ACTION_IDS.dummyIdle) setDummyMode('idle');
-});
 loadRoster().then(result => {
   entries = result.entries; version = rosterVersion(entries);
   renderIssues(result.issues);

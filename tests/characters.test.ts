@@ -14,12 +14,12 @@ test('only hans is registered, and only its exported attack is playable', async 
   const hans = parseCharacter(raw, 'hans');
   assert.equal(hans.name, '한스');
   assert.equal(hans.portraitProvided, false);
-  assert.deepEqual(raw.skills.map((skill: { skillId: string }) => skill.skillId), ['guard', 'crouch', 'jab']);
-  assert.deepEqual(hans.moves.map(move => move.id), ['jab']);
+  assert.deepEqual(raw.skills.map((skill: { skillId: string }) => skill.skillId), ['A']);
+  assert.deepEqual(hans.moves.map(move => move.id), ['A']);
   assert.equal(hans.moves[0].label, '베기');
   assert.equal(hans.moves[0].startup, 15);
   assert.equal(hans.moves[0].cooldown, 6);
-  assert.equal(hans.moves[0].bodyAnimation, 'jab');
+  assert.equal(hans.moves[0].bodyAnimation, 'A');
   assert.equal(hans.moves[0].effectAnimation, undefined);
 
   const game = new Game(hans, hans);
@@ -33,14 +33,14 @@ test('only hans is registered, and only its exported attack is playable', async 
   assert.equal(game.player.attack, null);
   game.player.x = 400; game.dummy.x = 455;
   game.update({ ...emptyInput(), attacks: [{ button: 'A', horizontal: 0, up: false, down: false }] });
-  assert.equal(game.player.attack?.move.id, 'jab');
+  assert.equal(game.player.attack?.move.id, 'A');
   for (let i = 0; i < 14; i++) game.update(emptyInput());
   assert.equal(game.dummy.hp, hans.maxHp - hans.moves[0].damage);
   game.restart();
   assert.equal(game.player.hp, hans.maxHp);
 });
 
-test('hans jab hits after 3 animation frames (15 ticks) and waits 6 ticks after recovery', async () => {
+test('hans A skill hits after 3 animation frames (15 ticks) and waits 6 ticks after recovery', async () => {
   const hans = parseCharacter(await json('../public/assets/characters/hans/character.json'), 'hans');
   const game = new Game(hans, hans); game.setMode('idle');
   game.player.x = 400; game.dummy.x = 455;
@@ -59,16 +59,17 @@ test('hans jab hits after 3 animation frames (15 ticks) and waits 6 ticks after 
   for (let i = 0; i < 4; i++) game.update(emptyInput());
   assert.equal(game.player.attack, null);
   game.update(emptyInput());
-  assert.equal(game.player.attack?.move.id, 'jab');
+  assert.equal(game.player.attack?.move.id, 'A');
 });
 
-test('hans v3 atlas provides idle, guard, crouch, and jab body frames', async () => {
+test('hans v3 atlas provides idle and A body frames without legacy control IDs', async () => {
   const atlas = parseAtlas(await json('../public/assets/characters/hans/atlas.json'));
   assert.equal(atlas.schemaVersion, 3);
   assert.deepEqual(atlas.atlases.characters.map(page => page.file), ['characters_1.png']);
   assert.deepEqual(atlas.atlases.effects, []);
   assert.equal(atlas.characterAnimations.find(animation => animation.name === 'idle')?.frames.length, 12);
-  for (const id of ['guard', 'crouch', 'jab']) assert.ok(atlas.characterAnimations.some(animation => animation.skillId === id && animation.frames.length > 0));
+  assert.ok(atlas.characterAnimations.some(animation => animation.skillId === 'A' && animation.frames.length > 0));
+  assert.ok(atlas.characterAnimations.every(animation => !['guard', 'crouch', 'jab'].includes(animation.skillId ?? '')));
   const layoutAtlas = { definition: atlas, characters: new Map(), effects: new Map() };
   assert.equal(animationScale(layoutAtlas, 'idle', 92), 2);
   assert.equal(animationGroundOffset(layoutAtlas, 'idle', 2, 92), 64);
@@ -76,7 +77,7 @@ test('hans v3 atlas provides idle, guard, crouch, and jab body frames', async ()
   const loaded = { definition: atlas, characters: new Map([['characters_1.png', image]]), effects: new Map() } as unknown as Parameters<typeof drawAtlasFrame>[1];
   const calls: unknown[][] = [], scales: unknown[][] = [];
   const ctx = { save() {}, restore() {}, translate() {}, scale(...args: unknown[]) { scales.push(args); }, drawImage(...args: unknown[]) { calls.push(args); } } as unknown as CanvasRenderingContext2D;
-  assert.equal(drawAtlasFrame(ctx, loaded, 'characters', 'jab', 0, 100, 200, -1, 2), true);
+  assert.equal(drawAtlasFrame(ctx, loaded, 'characters', 'A', 0, 100, 200, -1, 2), true);
   assert.equal(calls[0][0], image);
   assert.deepEqual(scales[0], [-1, 1]);
   assert.equal(ctx.imageSmoothingEnabled, false);
