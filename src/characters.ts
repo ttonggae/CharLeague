@@ -31,9 +31,14 @@ function parsePassive(value: unknown): PassiveData {
   if (value.skillId !== undefined && !isSkillId(value.skillId)) throw new Error('passive.skillId: A/S/D/Shift/Space 중 하나여야 합니다');
   if (!Array.isArray(value.effects) || value.effects.length === 0) throw new Error('passive.effects: 한 개 이상의 효과가 필요합니다');
   const effects: PassiveEffect[] = value.effects.map((effect, index) => {
-    if (!object(effect) || !['restoreStamina', 'restoreHealth', 'addUltimateProgress'].includes(String(effect.type)))
+    if (!object(effect)) throw new Error(`passive.effects[${index}]: 객체가 필요합니다`);
+    if (effect.type === 'bonusDamageAgainstState') {
+      if (effect.state !== 'stun') throw new Error(`passive.effects[${index}].state: stun만 지원합니다`);
+      return { type: 'bonusDamageAgainstState', state: 'stun', multiplier: number(effect.multiplier, `passive.effects[${index}].multiplier`, 1) };
+    }
+    if (!['restoreStamina', 'restoreHealth', 'addUltimateProgress'].includes(String(effect.type)))
       throw new Error(`passive.effects[${index}].type: 지원하지 않는 효과입니다`);
-    return { type: effect.type as PassiveEffect['type'], amount: number(effect.amount, `passive.effects[${index}].amount`) };
+    return { type: effect.type as 'restoreStamina' | 'restoreHealth' | 'addUltimateProgress', amount: number(effect.amount, `passive.effects[${index}].amount`) };
   });
   return {
     id: text(value.id, 'passive.id'), name: text(value.name, 'passive.name'),
@@ -49,7 +54,9 @@ function parseUltimate(value: unknown): UltimateData | undefined {
   if (!['landHits', 'takeDamage', 'spendStamina'].includes(conditionType)) throw new Error('ultimate.condition.type: landHits/takeDamage/spendStamina 중 하나여야 합니다');
   return {
     name: text(value.name, 'ultimate.name'), description: text(value.description, 'ultimate.description'), moveId: 'Space',
-    condition: { type: conditionType as UltimateData['condition']['type'], target: number(value.condition.target, 'ultimate.condition.target', 1) }
+    condition: { type: conditionType as UltimateData['condition']['type'], target: number(value.condition.target, 'ultimate.condition.target', 1) },
+    readyEffectAnimation: value.readyEffectAnimation === undefined ? undefined : text(value.readyEffectAnimation, 'ultimate.readyEffectAnimation'),
+    readyEffectTicks: value.readyEffectTicks === undefined ? undefined : ticks(value.readyEffectTicks, 'ultimate.readyEffectTicks', 1)
   };
 }
 
@@ -119,13 +126,44 @@ function parseStudioCharacter(raw: Record<string, unknown>, id: string): Charact
   if (!Array.isArray(raw.skills)) throw new Error('skills: 배열이 필요합니다');
   const ticksPerAnimationFrame = raw.ticksPerAnimationFrame === undefined
     ? TICK_RATE / ANIMATION_FPS : ticks(raw.ticksPerAnimationFrame, 'ticksPerAnimationFrame', 1);
-  const links = new Map<string, { body?: string; effect?: string; label?: string; startup?: number; active?: number; recovery?: number; cooldown?: number; staminaCost: number }>();
+  const spriteScale = raw.spriteScale === undefined ? playerData.spriteScale ?? 2 : number(raw.spriteScale, 'spriteScale', 0.01);
+  const sourceScale = raw.sourcePixelUnits === true ? spriteScale : 1;
+  type StudioLink = {
+    body?: string; effect?: string; label?: string; startup?: number; active?: number; recovery?: number; cooldown?: number;
+    staminaCost: number; damage?: number; chip?: number; hitstun?: number; reach?: number; height?: number;
+    knockback?: MoveData['knockback'];
+    kind?: MoveData['kind']; stunTicks?: number; guardStaminaPerSecond?: number; damageReduction?: number;
+    projectile?: MoveData['projectile'];
+  };
+  const links = new Map<string, StudioLink>();
   raw.skills.forEach((skill, index) => {
     if (!object(skill)) throw new Error(`skills[${index}]: 객체가 필요합니다`);
     const skillId = text(skill.skillId, `skills[${index}].skillId`);
-    if (!ATTACK_IDS.includes(skillId as Button)) throw new Error(`skills[${index}].skillId: A/S/D/Shift/Space 중 하나여야 합니다`);
+    if (!ATTACK_IDS.includes(skillId as Button)) {
+      if (skillId === 'Move' || skillId === 'P') return;
+      throw new Error(`skills[${index}].skillId: A/S/D/Shift/Space/Move/P 중 하나여야 합니다`);
+    }
     if (links.has(skillId)) throw new Error(`skills[${index}].skillId: 중복된 조작 ID ${skillId}`);
     if (skill.startup !== undefined && skill.startupFrames !== undefined) throw new Error(`skills[${index}]: startup과 startupFrames를 동시에 쓸 수 없습니다`);
+    const kind = skill.kind === undefined ? undefined : text(skill.kind, `skills[${index}].kind`) as MoveData['kind'];
+    if (kind && !['melee', 'area', 'projectile', 'guard'].includes(kind)) throw new Error(`skills[${index}].kind: melee/area/projectile/guard 중 하나여야 합니다`);
+    const damageReduction = skill.damageReduction === undefined ? undefined : number(skill.damageReduction, `skills[${index}].damageReduction`);
+    if (damageReduction !== undefined && damageReduction > 1) throw new Error(`skills[${index}].damageReduction: 0~1 값이 필요합니다`);
+    let projectile: MoveData['projectile'];
+    if (skill.projectile !== undefined) {
+      if (!object(skill.projectile)) throw new Error(`skills[${index}].projectile: 객체가 필요합니다`);
+      projectile = {
+        width: number(skill.projectile.width, `skills[${index}].projectile.width`, 1) * sourceScale,
+        height: number(skill.projectile.height, `skills[${index}].projectile.height`, 1) * sourceScale,
+        speed: number(skill.projectile.speed, `skills[${index}].projectile.speed`, 0.1),
+        lifetime: ticks(skill.projectile.lifetime ?? 120, `skills[${index}].projectile.lifetime`, 1)
+      };
+    }
+    let knockback: MoveData['knockback'] | undefined;
+    if (skill.knockback !== undefined) {
+      if (!object(skill.knockback)) throw new Error(`skills[${index}].knockback: x/y가 필요합니다`);
+      knockback = { x: number(skill.knockback.x, `skills[${index}].knockback.x`), y: number(skill.knockback.y, `skills[${index}].knockback.y`, -100) };
+    }
     const body = Array.isArray(skill.characterAnimations) ? skill.characterAnimations[0] : null;
     const effect = Array.isArray(skill.effectAnimations) ? skill.effectAnimations[0] : null;
     links.set(skillId, {
@@ -135,17 +173,34 @@ function parseStudioCharacter(raw: Record<string, unknown>, id: string): Charact
       startup: skill.startupFrames !== undefined
         ? ticks(skill.startupFrames, `skills[${index}].startupFrames`) * ticksPerAnimationFrame
         : skill.startup === undefined ? undefined : ticks(skill.startup, `skills[${index}].startup`),
-      active: skill.active === undefined ? undefined : ticks(skill.active, `skills[${index}].active`, 1),
-      recovery: skill.recovery === undefined ? undefined : ticks(skill.recovery, `skills[${index}].recovery`),
-      cooldown: skill.cooldown === undefined ? undefined : ticks(skill.cooldown, `skills[${index}].cooldown`),
-      staminaCost: number(skill.staminaCost, `skills[${index}].staminaCost`)
+      active: skill.activeFrames !== undefined ? ticks(skill.activeFrames, `skills[${index}].activeFrames`, 1) * ticksPerAnimationFrame
+        : skill.active === undefined ? undefined : ticks(skill.active, `skills[${index}].active`, 1),
+      recovery: skill.recoveryFrames !== undefined ? ticks(skill.recoveryFrames, `skills[${index}].recoveryFrames`) * ticksPerAnimationFrame
+        : skill.recovery === undefined ? undefined : ticks(skill.recovery, `skills[${index}].recovery`),
+      cooldown: skill.cooldownSeconds !== undefined ? Math.round(number(skill.cooldownSeconds, `skills[${index}].cooldownSeconds`) * TICK_RATE)
+        : skill.cooldown === undefined ? undefined : ticks(skill.cooldown, `skills[${index}].cooldown`),
+      staminaCost: number(skill.staminaCost ?? 0, `skills[${index}].staminaCost`),
+      damage: skill.damage === undefined ? undefined : number(skill.damage, `skills[${index}].damage`),
+      chip: skill.chip === undefined ? undefined : number(skill.chip, `skills[${index}].chip`),
+      hitstun: skill.hitstun === undefined ? undefined : ticks(skill.hitstun, `skills[${index}].hitstun`),
+      reach: skill.areaWidth !== undefined ? number(skill.areaWidth, `skills[${index}].areaWidth`, 1) * sourceScale / 2
+        : skill.reach === undefined ? undefined : number(skill.reach, `skills[${index}].reach`, 1) * sourceScale,
+      height: skill.height === undefined ? undefined : number(skill.height, `skills[${index}].height`, 1) * sourceScale,
+      kind, stunTicks: skill.stunSeconds === undefined ? undefined : Math.round(number(skill.stunSeconds, `skills[${index}].stunSeconds`, 0.01) * TICK_RATE),
+      guardStaminaPerSecond: skill.guardStaminaPerSecond === undefined ? undefined : number(skill.guardStaminaPerSecond, `skills[${index}].guardStaminaPerSecond`),
+      damageReduction, projectile, knockback
     });
   });
   const moves = playerData.moves.filter(move => links.has(move.id)).map(move => {
     const link = links.get(move.id)!;
     return { ...move, label: link.label ?? move.label, bodyAnimation: link.body, effectAnimation: link.effect,
       startup: link.startup ?? move.startup, active: link.active ?? move.active,
-      recovery: link.recovery ?? move.recovery, cooldown: link.cooldown ?? 0, staminaCost: link.staminaCost };
+      recovery: link.recovery ?? move.recovery, cooldown: link.cooldown ?? 0, staminaCost: link.staminaCost,
+      damage: link.damage ?? move.damage, chip: link.chip ?? move.chip, hitstun: link.hitstun ?? move.hitstun,
+      knockback: link.knockback ?? move.knockback,
+      reach: link.reach ?? move.reach, height: link.height ?? move.height, kind: link.kind ?? 'melee',
+      stunTicks: link.stunTicks, guardStaminaPerSecond: link.guardStaminaPerSecond,
+      damageReduction: link.damageReduction, projectile: link.projectile };
   });
   return validateUltimate({
     ...playerData,
@@ -153,8 +208,14 @@ function parseStudioCharacter(raw: Record<string, unknown>, id: string): Charact
     name: text(raw.displayName, 'displayName'),
     description: typeof raw.description === 'string' ? raw.description : 'Atlas Studio 캐릭터',
     portraitProvided: raw.portraitProvided !== false,
+    maxHp: raw.maxHp === undefined ? playerData.maxHp : number(raw.maxHp, 'maxHp', 1),
+    walkSpeed: raw.walkSpeed === undefined ? playerData.walkSpeed : number(raw.walkSpeed, 'walkSpeed'),
+    jumpSpeed: raw.jumpSpeed === undefined ? playerData.jumpSpeed : number(raw.jumpSpeed, 'jumpSpeed'),
     maxStamina: number(raw.maxStamina, 'maxStamina', 1), staminaRegen: number(raw.staminaRegen, 'staminaRegen'),
     passive: parsePassive(raw.passive), ultimate: parseUltimate(raw.ultimate),
+    width: raw.width === undefined ? playerData.width : number(raw.width, 'width', 1),
+    height: raw.height === undefined ? playerData.height : number(raw.height, 'height', 1),
+    spriteScale,
     dummyMoveId: moves[0]?.id,
     atlas: assetPath(raw.atlas, 'atlas'),
     portrait: assetPath(raw.portrait, 'portrait'),
@@ -202,6 +263,8 @@ async function loadOne(id: string): Promise<CharacterEntry> {
     if (move.bodyAnimation && !hasAnimation(atlas, 'characters', move.bodyAnimation)) error(entry, `${atlasPath}: ${move.id} characterAnimations 조작 ID ${move.bodyAnimation} 누락`);
     if (move.effectAnimation && !hasAnimation(atlas, 'effects', move.effectAnimation)) error(entry, `${atlasPath}: ${move.id} effectAnimations 조작 ID ${move.effectAnimation} 누락`);
   }
+  if (atlas && definition.ultimate?.readyEffectAnimation && !hasAnimation(atlas, 'effects', definition.ultimate.readyEffectAnimation))
+    error(entry, `${atlasPath}: 궁극기 개방 effectAnimations ID ${definition.ultimate.readyEffectAnimation} 누락`);
   if (portraitExists) entry.portraitUrl = portraitPath;
   else if (definition.portraitProvided !== false) error(entry, `${portraitPath}: 이미지 로드 실패`);
   return entry;

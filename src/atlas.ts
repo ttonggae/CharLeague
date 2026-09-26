@@ -156,5 +156,7 @@ export function animationGroundOffset(atlas: LoadedAtlas | null, key: string, sc
 
 export function fighterAnimation(f: Fighter): string {
   if (f.attack) return f.attack.move.bodyAnimation ?? `attack:${f.attack.move.id}`;
+  if (f.state === 'move') return 'Move';
+  if (f.state === 'guard') return 'Shift';
   return f.state;
 }

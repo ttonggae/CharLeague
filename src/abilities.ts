@@ -25,6 +25,11 @@ export function applyPassive(fighter: AbilityFighter, event: CombatEvent): void 
   }
 }
 
+export function passiveDamageMultiplier(fighter: AbilityFighter, targetState: 'stun' | null): number {
+  return fighter.data.passive.effects.reduce((multiplier, effect) =>
+    effect.type === 'bonusDamageAgainstState' && effect.state === targetState ? multiplier * effect.multiplier : multiplier, 1);
+}
+
 export function addUltimateProgress(fighter: AbilityFighter, amount: number): void {
   const target = fighter.data.ultimate?.condition.target;
   if (target === undefined) return;

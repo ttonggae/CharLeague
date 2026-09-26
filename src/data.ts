@@ -1,13 +1,12 @@
 export const SKILL_IDS = ['A', 'S', 'D', 'Shift', 'Space'] as const;
 export type Button = typeof SKILL_IDS[number];
 export type Direction = 'any' | 'forward' | 'back' | 'up' | 'down';
-export type FighterState = 'idle' | 'move' | 'jump' | 'fall' | 'guard' | 'attack' | 'hurt' | 'ko';
+export type FighterState = 'idle' | 'move' | 'jump' | 'fall' | 'guard' | 'attack' | 'hurt' | 'stun' | 'ko';
 export type CombatEventType = 'skillUse' | 'landHit' | 'takeDamage' | 'spendStamina';
 
-export interface PassiveEffect {
-  type: 'restoreStamina' | 'restoreHealth' | 'addUltimateProgress';
-  amount: number;
-}
+export type PassiveEffect =
+  | { type: 'restoreStamina' | 'restoreHealth' | 'addUltimateProgress'; amount: number }
+  | { type: 'bonusDamageAgainstState'; state: 'stun'; multiplier: number };
 export interface PassiveData {
   id: string;
   name: string;
@@ -21,6 +20,8 @@ export interface UltimateData {
   description: string;
   moveId: 'Space';
   condition: { type: 'landHits' | 'takeDamage' | 'spendStamina'; target: number };
+  readyEffectAnimation?: string;
+  readyEffectTicks?: number;
 }
 
 // Movement IDs are internal. Skill IDs intentionally match their physical key labels.
@@ -52,6 +53,11 @@ export interface MoveData {
   bodyAnimation?: string;
   bodyAnimationMode?: 'overlay' | 'replace';
   effectAnimation?: string;
+  kind?: 'melee' | 'area' | 'projectile' | 'guard';
+  stunTicks?: number;
+  guardStaminaPerSecond?: number;
+  damageReduction?: number;
+  projectile?: { width: number; height: number; speed: number; lifetime: number };
 }
 
 export interface CharacterData {

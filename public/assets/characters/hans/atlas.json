@@ -10,37 +10,33 @@
     "width": 4096,
     "height": 4096
   },
-  "generatedAt": "2026-09-20T10:32:35.619Z",
+  "generatedAt": "2026-09-26T15:36:38.405Z",
   "previewLinkRule": "same-skill-id-only",
   "atlases": {
     "characters": [
       {
         "index": 0,
         "file": "characters_1.png",
-        "width": 778,
-        "height": 56
+        "width": 1623,
+        "height": 60
       }
     ],
-    "effects": []
+    "effects": [
+      {
+        "index": 0,
+        "file": "effects_1.png",
+        "width": 350,
+        "height": 51
+      }
+    ]
   },
   "skillLinks": [
     {
-      "skillId": null,
+      "skillId": "Shift",
       "characterAnimations": [
         {
           "id": "f26e7f1e-f454-4f0c-a168-f8a442611033",
           "name": "방어",
-          "loop": false
-        }
-      ],
-      "effectAnimations": []
-    },
-    {
-      "skillId": null,
-      "characterAnimations": [
-        {
-          "id": "199f53ce-063c-41df-ad90-1918d8c5b76f",
-          "name": "앉기",
           "loop": false
         }
       ],
@@ -56,6 +52,69 @@
         }
       ],
       "effectAnimations": []
+    },
+    {
+      "skillId": "S",
+      "characterAnimations": [
+        {
+          "id": "da0cab79-7f1e-49cf-8df3-8ec797415dda",
+          "name": "충격",
+          "loop": false
+        }
+      ],
+      "effectAnimations": []
+    },
+    {
+      "skillId": "Move",
+      "characterAnimations": [
+        {
+          "id": "cb47a083-5626-4414-aaf5-b099ebb312ff",
+          "name": "Move",
+          "loop": false
+        }
+      ],
+      "effectAnimations": []
+    },
+    {
+      "skillId": "D",
+      "characterAnimations": [
+        {
+          "id": "314d1032-ff93-4515-8539-a135000007cb",
+          "name": "찌르기",
+          "loop": false
+        }
+      ],
+      "effectAnimations": []
+    },
+    {
+      "skillId": "Space",
+      "characterAnimations": [
+        {
+          "id": "b1852e6d-4c10-4d8a-a306-a5a100789508",
+          "name": "파동검기",
+          "loop": false
+        }
+      ],
+      "effectAnimations": [
+        {
+          "id": "f6d42b9c-beb0-4dd8-9459-0fa2a5871f1e",
+          "name": "검기",
+          "loop": true,
+          "startFrame": 0
+        }
+      ]
+    },
+    {
+      "skillId": "P",
+      "characterAnimations": [],
+      "effectAnimations": [
+        {
+          "id": "98e33aeb-f070-4092-901b-7d99297c99f5",
+          "name": "effect_2",
+          "loop": false,
+          "startFrame": 0
+        }
+      ]
     }
   ],
   "characterAnimations": [
@@ -478,7 +537,7 @@
     },
     {
       "id": "f26e7f1e-f454-4f0c-a168-f8a442611033",
-      "skillId": null,
+      "skillId": "Shift",
       "name": "방어",
       "fps": 12,
       "loop": false,
@@ -520,49 +579,6 @@
       ]
     },
     {
-      "id": "199f53ce-063c-41df-ad90-1918d8c5b76f",
-      "skillId": null,
-      "name": "앉기",
-      "fps": 12,
-      "loop": false,
-      "frames": [
-        {
-          "id": "bb6a86bd-d5bb-4e7e-861b-93d0341bb865",
-          "name": "frame_1",
-          "order": 0,
-          "durationTicks": 5,
-          "durationMs": 83.3333,
-          "atlas": "characters_1.png",
-          "atlasIndex": 0,
-          "rect": {
-            "x": 541,
-            "y": 0,
-            "width": 24,
-            "height": 31
-          },
-          "originalSize": {
-            "width": 64,
-            "height": 64
-          },
-          "trim": {
-            "x": 19,
-            "y": 33,
-            "width": 24,
-            "height": 31
-          },
-          "empty": false,
-          "pivot": {
-            "x": 32,
-            "y": 32
-          },
-          "position": {
-            "x": 0,
-            "y": 0
-          }
-        }
-      ]
-    },
-    {
       "id": "94680f9d-494d-4df0-9b76-d46d3836c8ac",
       "skillId": "A",
       "name": "베기",
@@ -578,7 +594,7 @@
           "atlas": "characters_1.png",
           "atlasIndex": 0,
           "rect": {
-            "x": 567,
+            "x": 541,
             "y": 0,
             "width": 30,
             "height": 56
@@ -612,7 +628,7 @@
           "atlas": "characters_1.png",
           "atlasIndex": 0,
           "rect": {
-            "x": 599,
+            "x": 573,
             "y": 0,
             "width": 30,
             "height": 56
@@ -646,7 +662,7 @@
           "atlas": "characters_1.png",
           "atlasIndex": 0,
           "rect": {
-            "x": 631,
+            "x": 605,
             "y": 0,
             "width": 30,
             "height": 56
@@ -680,7 +696,7 @@
           "atlas": "characters_1.png",
           "atlasIndex": 0,
           "rect": {
-            "x": 663,
+            "x": 637,
             "y": 0,
             "width": 37,
             "height": 48
@@ -714,7 +730,7 @@
           "atlas": "characters_1.png",
           "atlasIndex": 0,
           "rect": {
-            "x": 702,
+            "x": 676,
             "y": 0,
             "width": 37,
             "height": 47
@@ -748,7 +764,757 @@
           "atlas": "characters_1.png",
           "atlasIndex": 0,
           "rect": {
-            "x": 741,
+            "x": 715,
+            "y": 0,
+            "width": 37,
+            "height": 47
+          },
+          "originalSize": {
+            "width": 64,
+            "height": 64
+          },
+          "trim": {
+            "x": 20,
+            "y": 17,
+            "width": 37,
+            "height": 47
+          },
+          "empty": false,
+          "pivot": {
+            "x": 32,
+            "y": 32
+          },
+          "position": {
+            "x": 0,
+            "y": 0
+          }
+        }
+      ]
+    },
+    {
+      "id": "da0cab79-7f1e-49cf-8df3-8ec797415dda",
+      "skillId": "S",
+      "name": "충격",
+      "fps": 12,
+      "loop": false,
+      "frames": [
+        {
+          "id": "72f5d264-4a0f-4035-83d1-0572bbad9c11",
+          "name": "1",
+          "order": 0,
+          "durationTicks": 5,
+          "durationMs": 83.3333,
+          "atlas": "characters_1.png",
+          "atlasIndex": 0,
+          "rect": {
+            "x": 754,
+            "y": 0,
+            "width": 35,
+            "height": 46
+          },
+          "originalSize": {
+            "width": 64,
+            "height": 64
+          },
+          "trim": {
+            "x": 19,
+            "y": 18,
+            "width": 35,
+            "height": 46
+          },
+          "empty": false,
+          "pivot": {
+            "x": 32,
+            "y": 32
+          },
+          "position": {
+            "x": 0,
+            "y": 0
+          }
+        },
+        {
+          "id": "c153e179-ae19-41b9-9a29-a7f5fcaea345",
+          "name": "2",
+          "order": 1,
+          "durationTicks": 5,
+          "durationMs": 83.3333,
+          "atlas": "characters_1.png",
+          "atlasIndex": 0,
+          "rect": {
+            "x": 791,
+            "y": 0,
+            "width": 35,
+            "height": 46
+          },
+          "originalSize": {
+            "width": 64,
+            "height": 64
+          },
+          "trim": {
+            "x": 19,
+            "y": 18,
+            "width": 35,
+            "height": 46
+          },
+          "empty": false,
+          "pivot": {
+            "x": 32,
+            "y": 32
+          },
+          "position": {
+            "x": 0,
+            "y": 0
+          }
+        },
+        {
+          "id": "dd9e33bb-a656-4d55-b873-af24bd73bead",
+          "name": "3",
+          "order": 2,
+          "durationTicks": 5,
+          "durationMs": 83.3333,
+          "atlas": "characters_1.png",
+          "atlasIndex": 0,
+          "rect": {
+            "x": 828,
+            "y": 0,
+            "width": 35,
+            "height": 30
+          },
+          "originalSize": {
+            "width": 64,
+            "height": 64
+          },
+          "trim": {
+            "x": 17,
+            "y": 34,
+            "width": 35,
+            "height": 30
+          },
+          "empty": false,
+          "pivot": {
+            "x": 32,
+            "y": 32
+          },
+          "position": {
+            "x": 0,
+            "y": 0
+          }
+        },
+        {
+          "id": "cf9e6da7-b7a0-4352-a95f-46f3d8b07c9a",
+          "name": "4",
+          "order": 3,
+          "durationTicks": 5,
+          "durationMs": 83.3333,
+          "atlas": "characters_1.png",
+          "atlasIndex": 0,
+          "rect": {
+            "x": 865,
+            "y": 0,
+            "width": 41,
+            "height": 30
+          },
+          "originalSize": {
+            "width": 64,
+            "height": 64
+          },
+          "trim": {
+            "x": 17,
+            "y": 34,
+            "width": 41,
+            "height": 30
+          },
+          "empty": false,
+          "pivot": {
+            "x": 32,
+            "y": 32
+          },
+          "position": {
+            "x": 0,
+            "y": 0
+          }
+        },
+        {
+          "id": "eac3fe9a-d880-4087-87d2-469ae2f59736",
+          "name": "5",
+          "order": 4,
+          "durationTicks": 5,
+          "durationMs": 83.3333,
+          "atlas": "characters_1.png",
+          "atlasIndex": 0,
+          "rect": {
+            "x": 908,
+            "y": 0,
+            "width": 46,
+            "height": 30
+          },
+          "originalSize": {
+            "width": 64,
+            "height": 64
+          },
+          "trim": {
+            "x": 17,
+            "y": 34,
+            "width": 46,
+            "height": 30
+          },
+          "empty": false,
+          "pivot": {
+            "x": 32,
+            "y": 32
+          },
+          "position": {
+            "x": 0,
+            "y": 0
+          }
+        },
+        {
+          "id": "92f715f0-5f63-4c80-b225-7daee4783c2b",
+          "name": "6",
+          "order": 5,
+          "durationTicks": 5,
+          "durationMs": 83.3333,
+          "atlas": "characters_1.png",
+          "atlasIndex": 0,
+          "rect": {
+            "x": 956,
+            "y": 0,
+            "width": 47,
+            "height": 30
+          },
+          "originalSize": {
+            "width": 64,
+            "height": 64
+          },
+          "trim": {
+            "x": 17,
+            "y": 34,
+            "width": 47,
+            "height": 30
+          },
+          "empty": false,
+          "pivot": {
+            "x": 32,
+            "y": 32
+          },
+          "position": {
+            "x": 0,
+            "y": 0
+          }
+        }
+      ]
+    },
+    {
+      "id": "cb47a083-5626-4414-aaf5-b099ebb312ff",
+      "skillId": "Move",
+      "name": "Move",
+      "fps": 12,
+      "loop": false,
+      "frames": [
+        {
+          "id": "8d86e218-e7d6-4375-b7eb-276bf03d5c92",
+          "name": "download",
+          "order": 0,
+          "durationTicks": 5,
+          "durationMs": 83.3333,
+          "atlas": "characters_1.png",
+          "atlasIndex": 0,
+          "rect": {
+            "x": 1005,
+            "y": 0,
+            "width": 33,
+            "height": 46
+          },
+          "originalSize": {
+            "width": 64,
+            "height": 64
+          },
+          "trim": {
+            "x": 12,
+            "y": 18,
+            "width": 33,
+            "height": 46
+          },
+          "empty": false,
+          "pivot": {
+            "x": 32,
+            "y": 32
+          },
+          "position": {
+            "x": 0,
+            "y": 0
+          }
+        },
+        {
+          "id": "2d0f8d55-25a9-4962-9bda-9ecc2f25c0aa",
+          "name": "download",
+          "order": 1,
+          "durationTicks": 5,
+          "durationMs": 83.3333,
+          "atlas": "characters_1.png",
+          "atlasIndex": 0,
+          "rect": {
+            "x": 1040,
+            "y": 0,
+            "width": 33,
+            "height": 46
+          },
+          "originalSize": {
+            "width": 64,
+            "height": 64
+          },
+          "trim": {
+            "x": 12,
+            "y": 18,
+            "width": 33,
+            "height": 46
+          },
+          "empty": false,
+          "pivot": {
+            "x": 32,
+            "y": 32
+          },
+          "position": {
+            "x": 0,
+            "y": 0
+          }
+        },
+        {
+          "id": "337261c5-691c-47af-8747-bb6aeae2eee1",
+          "name": "download",
+          "order": 2,
+          "durationTicks": 5,
+          "durationMs": 83.3333,
+          "atlas": "characters_1.png",
+          "atlasIndex": 0,
+          "rect": {
+            "x": 1075,
+            "y": 0,
+            "width": 38,
+            "height": 47
+          },
+          "originalSize": {
+            "width": 64,
+            "height": 64
+          },
+          "trim": {
+            "x": 20,
+            "y": 17,
+            "width": 38,
+            "height": 47
+          },
+          "empty": false,
+          "pivot": {
+            "x": 32,
+            "y": 32
+          },
+          "position": {
+            "x": 0,
+            "y": 0
+          }
+        },
+        {
+          "id": "2ac43434-8c12-4040-a2ea-48c26edfb671",
+          "name": "download",
+          "order": 3,
+          "durationTicks": 5,
+          "durationMs": 83.3333,
+          "atlas": "characters_1.png",
+          "atlasIndex": 0,
+          "rect": {
+            "x": 1115,
+            "y": 0,
+            "width": 38,
+            "height": 47
+          },
+          "originalSize": {
+            "width": 64,
+            "height": 64
+          },
+          "trim": {
+            "x": 20,
+            "y": 17,
+            "width": 38,
+            "height": 47
+          },
+          "empty": false,
+          "pivot": {
+            "x": 32,
+            "y": 32
+          },
+          "position": {
+            "x": 0,
+            "y": 0
+          }
+        }
+      ]
+    },
+    {
+      "id": "314d1032-ff93-4515-8539-a135000007cb",
+      "skillId": "D",
+      "name": "찌르기",
+      "fps": 12,
+      "loop": false,
+      "frames": [
+        {
+          "id": "6486da95-dd5e-4b6a-8967-a3e64203ae1d",
+          "name": "1",
+          "order": 0,
+          "durationTicks": 5,
+          "durationMs": 83.3333,
+          "atlas": "characters_1.png",
+          "atlasIndex": 0,
+          "rect": {
+            "x": 1155,
+            "y": 0,
+            "width": 43,
+            "height": 43
+          },
+          "originalSize": {
+            "width": 64,
+            "height": 64
+          },
+          "trim": {
+            "x": 10,
+            "y": 21,
+            "width": 43,
+            "height": 43
+          },
+          "empty": false,
+          "pivot": {
+            "x": 32,
+            "y": 32
+          },
+          "position": {
+            "x": 0,
+            "y": 0
+          }
+        },
+        {
+          "id": "65093d56-3795-4ec1-bb0e-939df481d930",
+          "name": "2",
+          "order": 1,
+          "durationTicks": 5,
+          "durationMs": 83.3333,
+          "atlas": "characters_1.png",
+          "atlasIndex": 0,
+          "rect": {
+            "x": 1200,
+            "y": 0,
+            "width": 43,
+            "height": 43
+          },
+          "originalSize": {
+            "width": 64,
+            "height": 64
+          },
+          "trim": {
+            "x": 10,
+            "y": 21,
+            "width": 43,
+            "height": 43
+          },
+          "empty": false,
+          "pivot": {
+            "x": 32,
+            "y": 32
+          },
+          "position": {
+            "x": 0,
+            "y": 0
+          }
+        },
+        {
+          "id": "3918e714-965d-4a51-a95a-3fcd045f412f",
+          "name": "3",
+          "order": 2,
+          "durationTicks": 5,
+          "durationMs": 83.3333,
+          "atlas": "characters_1.png",
+          "atlasIndex": 0,
+          "rect": {
+            "x": 1245,
+            "y": 0,
+            "width": 53,
+            "height": 43
+          },
+          "originalSize": {
+            "width": 64,
+            "height": 64
+          },
+          "trim": {
+            "x": 11,
+            "y": 21,
+            "width": 53,
+            "height": 43
+          },
+          "empty": false,
+          "pivot": {
+            "x": 26,
+            "y": 32
+          },
+          "position": {
+            "x": 0,
+            "y": 0
+          }
+        },
+        {
+          "id": "758244bf-e729-4b70-82dd-5d60307c4d38",
+          "name": "4",
+          "order": 3,
+          "durationTicks": 5,
+          "durationMs": 83.3333,
+          "atlas": "characters_1.png",
+          "atlasIndex": 0,
+          "rect": {
+            "x": 1300,
+            "y": 0,
+            "width": 53,
+            "height": 43
+          },
+          "originalSize": {
+            "width": 64,
+            "height": 64
+          },
+          "trim": {
+            "x": 11,
+            "y": 21,
+            "width": 53,
+            "height": 43
+          },
+          "empty": false,
+          "pivot": {
+            "x": 32,
+            "y": 32
+          },
+          "position": {
+            "x": 0,
+            "y": 0
+          }
+        },
+        {
+          "id": "86abbcc7-5fd2-4771-af47-602dc820ca2b",
+          "name": "5",
+          "order": 4,
+          "durationTicks": 5,
+          "durationMs": 83.3333,
+          "atlas": "characters_1.png",
+          "atlasIndex": 0,
+          "rect": {
+            "x": 1355,
+            "y": 0,
+            "width": 53,
+            "height": 43
+          },
+          "originalSize": {
+            "width": 64,
+            "height": 64
+          },
+          "trim": {
+            "x": 11,
+            "y": 21,
+            "width": 53,
+            "height": 43
+          },
+          "empty": false,
+          "pivot": {
+            "x": 32,
+            "y": 32
+          },
+          "position": {
+            "x": 0,
+            "y": 0
+          }
+        }
+      ]
+    },
+    {
+      "id": "b1852e6d-4c10-4d8a-a306-a5a100789508",
+      "skillId": "Space",
+      "name": "파동검기",
+      "fps": 12,
+      "loop": false,
+      "frames": [
+        {
+          "id": "4176df66-6ddf-4529-a06b-bb9c532361da",
+          "name": "1",
+          "order": 0,
+          "durationTicks": 5,
+          "durationMs": 83.3333,
+          "atlas": "characters_1.png",
+          "atlasIndex": 0,
+          "rect": {
+            "x": 1410,
+            "y": 0,
+            "width": 30,
+            "height": 56
+          },
+          "originalSize": {
+            "width": 64,
+            "height": 64
+          },
+          "trim": {
+            "x": 17,
+            "y": 8,
+            "width": 30,
+            "height": 56
+          },
+          "empty": false,
+          "pivot": {
+            "x": 32,
+            "y": 32
+          },
+          "position": {
+            "x": 0,
+            "y": 0
+          }
+        },
+        {
+          "id": "cc82c16f-e360-413e-8cd2-afce3e65c74c",
+          "name": "2",
+          "order": 1,
+          "durationTicks": 5,
+          "durationMs": 83.3333,
+          "atlas": "characters_1.png",
+          "atlasIndex": 0,
+          "rect": {
+            "x": 1442,
+            "y": 0,
+            "width": 30,
+            "height": 56
+          },
+          "originalSize": {
+            "width": 64,
+            "height": 64
+          },
+          "trim": {
+            "x": 17,
+            "y": 8,
+            "width": 30,
+            "height": 56
+          },
+          "empty": false,
+          "pivot": {
+            "x": 32,
+            "y": 32
+          },
+          "position": {
+            "x": 0,
+            "y": 0
+          }
+        },
+        {
+          "id": "2dc8afaf-8130-47ca-9484-ed9048ecd821",
+          "name": "3",
+          "order": 2,
+          "durationTicks": 5,
+          "durationMs": 83.3333,
+          "atlas": "characters_1.png",
+          "atlasIndex": 0,
+          "rect": {
+            "x": 1474,
+            "y": 0,
+            "width": 32,
+            "height": 60
+          },
+          "originalSize": {
+            "width": 64,
+            "height": 64
+          },
+          "trim": {
+            "x": 15,
+            "y": 4,
+            "width": 32,
+            "height": 60
+          },
+          "empty": false,
+          "pivot": {
+            "x": 32,
+            "y": 32
+          },
+          "position": {
+            "x": 0,
+            "y": 0
+          }
+        },
+        {
+          "id": "48635097-b13c-46ed-8105-c0af4e4ea9de",
+          "name": "4",
+          "order": 3,
+          "durationTicks": 5,
+          "durationMs": 83.3333,
+          "atlas": "characters_1.png",
+          "atlasIndex": 0,
+          "rect": {
+            "x": 1508,
+            "y": 0,
+            "width": 37,
+            "height": 57
+          },
+          "originalSize": {
+            "width": 64,
+            "height": 64
+          },
+          "trim": {
+            "x": 20,
+            "y": 7,
+            "width": 37,
+            "height": 57
+          },
+          "empty": false,
+          "pivot": {
+            "x": 32,
+            "y": 32
+          },
+          "position": {
+            "x": 0,
+            "y": 0
+          }
+        },
+        {
+          "id": "4869767d-843b-4e9c-a619-1ef948576b93",
+          "name": "5",
+          "order": 4,
+          "durationTicks": 5,
+          "durationMs": 83.3333,
+          "atlas": "characters_1.png",
+          "atlasIndex": 0,
+          "rect": {
+            "x": 1547,
+            "y": 0,
+            "width": 37,
+            "height": 47
+          },
+          "originalSize": {
+            "width": 64,
+            "height": 64
+          },
+          "trim": {
+            "x": 20,
+            "y": 17,
+            "width": 37,
+            "height": 47
+          },
+          "empty": false,
+          "pivot": {
+            "x": 32,
+            "y": 32
+          },
+          "position": {
+            "x": 0,
+            "y": 0
+          }
+        },
+        {
+          "id": "9f669530-6fdf-4996-a48f-9ba4006e56a0",
+          "name": "6",
+          "order": 5,
+          "durationTicks": 5,
+          "durationMs": 83.3333,
+          "atlas": "characters_1.png",
+          "atlasIndex": 0,
+          "rect": {
+            "x": 1586,
             "y": 0,
             "width": 37,
             "height": 47
@@ -779,14 +1545,435 @@
   "effectAnimations": [
     {
       "id": "f6d42b9c-beb0-4dd8-9459-0fa2a5871f1e",
-      "skillId": null,
-      "name": "effect",
+      "skillId": "Space",
+      "name": "검기",
+      "fps": 12,
+      "loop": true,
+      "startFrame": 0,
+      "layer": "front",
+      "followCharacter": true,
+      "frames": [
+        {
+          "id": "c8bee4d7-31da-4aad-bb8b-9096273376ec",
+          "name": "download",
+          "order": 0,
+          "durationTicks": 5,
+          "durationMs": 83.3333,
+          "atlas": "effects_1.png",
+          "atlasIndex": 0,
+          "rect": {
+            "x": 0,
+            "y": 0,
+            "width": 52,
+            "height": 34
+          },
+          "originalSize": {
+            "width": 64,
+            "height": 64
+          },
+          "trim": {
+            "x": 7,
+            "y": 17,
+            "width": 52,
+            "height": 34
+          },
+          "empty": false,
+          "pivot": {
+            "x": 32,
+            "y": 32
+          },
+          "position": {
+            "x": 0,
+            "y": 0
+          }
+        },
+        {
+          "id": "6fa03b9e-0d7e-4d73-b227-99d3a7b2e0ff",
+          "name": "download",
+          "order": 1,
+          "durationTicks": 5,
+          "durationMs": 83.3333,
+          "atlas": "effects_1.png",
+          "atlasIndex": 0,
+          "rect": {
+            "x": 54,
+            "y": 0,
+            "width": 52,
+            "height": 34
+          },
+          "originalSize": {
+            "width": 64,
+            "height": 64
+          },
+          "trim": {
+            "x": 7,
+            "y": 17,
+            "width": 52,
+            "height": 34
+          },
+          "empty": false,
+          "pivot": {
+            "x": 32,
+            "y": 32
+          },
+          "position": {
+            "x": 0,
+            "y": 0
+          }
+        },
+        {
+          "id": "18cdb4d3-6408-47f8-b0fc-76936f0f05f8",
+          "name": "frame_1",
+          "order": 2,
+          "durationTicks": 5,
+          "durationMs": 83.3333,
+          "atlas": "effects_1.png",
+          "atlasIndex": 0,
+          "rect": {
+            "x": 108,
+            "y": 0,
+            "width": 55,
+            "height": 51
+          },
+          "originalSize": {
+            "width": 64,
+            "height": 64
+          },
+          "trim": {
+            "x": 0,
+            "y": 5,
+            "width": 55,
+            "height": 51
+          },
+          "empty": false,
+          "pivot": {
+            "x": 32,
+            "y": 32
+          },
+          "position": {
+            "x": 0,
+            "y": 0
+          }
+        },
+        {
+          "id": "56e92494-be60-4c21-97eb-2c9cf7972e00",
+          "name": "download",
+          "order": 3,
+          "durationTicks": 5,
+          "durationMs": 83.3333,
+          "atlas": "effects_1.png",
+          "atlasIndex": 0,
+          "rect": {
+            "x": 165,
+            "y": 0,
+            "width": 55,
+            "height": 51
+          },
+          "originalSize": {
+            "width": 64,
+            "height": 64
+          },
+          "trim": {
+            "x": 0,
+            "y": 5,
+            "width": 55,
+            "height": 51
+          },
+          "empty": false,
+          "pivot": {
+            "x": 32,
+            "y": 32
+          },
+          "position": {
+            "x": 0,
+            "y": 0
+          }
+        }
+      ]
+    },
+    {
+      "id": "98e33aeb-f070-4092-901b-7d99297c99f5",
+      "skillId": "P",
+      "name": "effect_2",
       "fps": 12,
       "loop": false,
       "startFrame": 0,
       "layer": "front",
       "followCharacter": true,
-      "frames": []
+      "frames": [
+        {
+          "id": "0bf3424d-0dd2-47ab-b959-e0528c19f917",
+          "name": "frame_1",
+          "order": 0,
+          "durationTicks": 5,
+          "durationMs": 83.3333,
+          "atlas": "effects_1.png",
+          "atlasIndex": 0,
+          "rect": {
+            "x": 222,
+            "y": 0,
+            "width": 20,
+            "height": 44
+          },
+          "originalSize": {
+            "width": 64,
+            "height": 64
+          },
+          "trim": {
+            "x": 21,
+            "y": 16,
+            "width": 20,
+            "height": 44
+          },
+          "empty": false,
+          "pivot": {
+            "x": 32,
+            "y": 32
+          },
+          "position": {
+            "x": 0,
+            "y": 0
+          }
+        },
+        {
+          "id": "60e84f56-295a-4065-a8a4-132aa9358443",
+          "name": "download",
+          "order": 1,
+          "durationTicks": 5,
+          "durationMs": 83.3333,
+          "atlas": "effects_1.png",
+          "atlasIndex": 0,
+          "rect": {
+            "x": 244,
+            "y": 0,
+            "width": 20,
+            "height": 44
+          },
+          "originalSize": {
+            "width": 64,
+            "height": 64
+          },
+          "trim": {
+            "x": 21,
+            "y": 16,
+            "width": 20,
+            "height": 44
+          },
+          "empty": false,
+          "pivot": {
+            "x": 32,
+            "y": 32
+          },
+          "position": {
+            "x": 0,
+            "y": 0
+          }
+        },
+        {
+          "id": "6fbe6bad-23ca-4082-aea1-5fce56325cc0",
+          "name": "download",
+          "order": 2,
+          "durationTicks": 5,
+          "durationMs": 83.3333,
+          "atlas": "effects_1.png",
+          "atlasIndex": 0,
+          "rect": {
+            "x": 266,
+            "y": 0,
+            "width": 14,
+            "height": 44
+          },
+          "originalSize": {
+            "width": 64,
+            "height": 64
+          },
+          "trim": {
+            "x": 28,
+            "y": 16,
+            "width": 14,
+            "height": 44
+          },
+          "empty": false,
+          "pivot": {
+            "x": 32,
+            "y": 32
+          },
+          "position": {
+            "x": 0,
+            "y": 0
+          }
+        },
+        {
+          "id": "a092071e-e40d-45e5-a717-7198c9b4eb90",
+          "name": "frame_2",
+          "order": 3,
+          "durationTicks": 5,
+          "durationMs": 83.3333,
+          "atlas": "effects_1.png",
+          "atlasIndex": 0,
+          "rect": {
+            "x": 282,
+            "y": 0,
+            "width": 14,
+            "height": 44
+          },
+          "originalSize": {
+            "width": 64,
+            "height": 64
+          },
+          "trim": {
+            "x": 28,
+            "y": 16,
+            "width": 14,
+            "height": 44
+          },
+          "empty": false,
+          "pivot": {
+            "x": 32,
+            "y": 32
+          },
+          "position": {
+            "x": 0,
+            "y": 0
+          }
+        },
+        {
+          "id": "bad571c9-642d-45c9-872b-e8f22fee75a1",
+          "name": "download",
+          "order": 4,
+          "durationTicks": 5,
+          "durationMs": 83.3333,
+          "atlas": "effects_1.png",
+          "atlasIndex": 0,
+          "rect": {
+            "x": 298,
+            "y": 0,
+            "width": 9,
+            "height": 31
+          },
+          "originalSize": {
+            "width": 64,
+            "height": 64
+          },
+          "trim": {
+            "x": 22,
+            "y": 21,
+            "width": 9,
+            "height": 31
+          },
+          "empty": false,
+          "pivot": {
+            "x": 32,
+            "y": 32
+          },
+          "position": {
+            "x": 0,
+            "y": 0
+          }
+        },
+        {
+          "id": "c8ccace7-ed7d-4852-95e5-026dc439c791",
+          "name": "download",
+          "order": 5,
+          "durationTicks": 5,
+          "durationMs": 83.3333,
+          "atlas": "effects_1.png",
+          "atlasIndex": 0,
+          "rect": {
+            "x": 309,
+            "y": 0,
+            "width": 9,
+            "height": 31
+          },
+          "originalSize": {
+            "width": 64,
+            "height": 64
+          },
+          "trim": {
+            "x": 22,
+            "y": 21,
+            "width": 9,
+            "height": 31
+          },
+          "empty": false,
+          "pivot": {
+            "x": 32,
+            "y": 32
+          },
+          "position": {
+            "x": 0,
+            "y": 0
+          }
+        },
+        {
+          "id": "e658425f-9155-4612-a6fe-0b5d39ad6470",
+          "name": "download",
+          "order": 6,
+          "durationTicks": 5,
+          "durationMs": 83.3333,
+          "atlas": "effects_1.png",
+          "atlasIndex": 0,
+          "rect": {
+            "x": 320,
+            "y": 0,
+            "width": 14,
+            "height": 31
+          },
+          "originalSize": {
+            "width": 64,
+            "height": 64
+          },
+          "trim": {
+            "x": 22,
+            "y": 26,
+            "width": 14,
+            "height": 31
+          },
+          "empty": false,
+          "pivot": {
+            "x": 32,
+            "y": 32
+          },
+          "position": {
+            "x": 0,
+            "y": 0
+          }
+        },
+        {
+          "id": "cea112bc-2549-44bd-88ce-37e05a0b1a7e",
+          "name": "download",
+          "order": 7,
+          "durationTicks": 5,
+          "durationMs": 83.3333,
+          "atlas": "effects_1.png",
+          "atlasIndex": 0,
+          "rect": {
+            "x": 336,
+            "y": 0,
+            "width": 14,
+            "height": 31
+          },
+          "originalSize": {
+            "width": 64,
+            "height": 64
+          },
+          "trim": {
+            "x": 22,
+            "y": 26,
+            "width": 14,
+            "height": 31
+          },
+          "empty": false,
+          "pivot": {
+            "x": 32,
+            "y": 32
+          },
+          "position": {
+            "x": 0,
+            "y": 0
+          }
+        }
+      ]
     }
   ]
 }

@@ -2,54 +2,84 @@
   "schemaVersion": 1,
   "characterId": "hans",
   "displayName": "한스",
+  "description": "기절한 상대에게 치명타를 가하는 검사",
   "atlas": "atlas.json",
   "portrait": "portrait.png",
   "portraitProvided": false,
   "animationFps": 12,
   "gameTickRate": 60,
   "ticksPerAnimationFrame": 5,
+  "sourcePixelUnits": true,
+  "spriteScale": 2,
+  "maxHp": 100,
+  "walkSpeed": 4.1,
+  "jumpSpeed": 13.4,
+  "width": 42,
+  "height": 92,
   "maxStamina": 100,
   "staminaRegen": 0.2,
   "passive": {
-    "id": "hans-blade-rhythm",
-    "name": "칼날의 리듬",
-    "description": "공격 적중 시 기력을 5 회복합니다.",
+    "id": "hans-critical",
+    "name": "치명타",
+    "description": "스킬을 3회 적중시키면 궁극기가 개방되고, 기절 중인 상대에게 주는 피해가 50% 증가합니다.",
     "trigger": "landHit",
     "effects": [
-      { "type": "restoreStamina", "amount": 5 }
+      { "type": "bonusDamageAgainstState", "state": "stun", "multiplier": 1.5 }
     ]
   },
   "ultimate": {
-    "name": "결전의 일격",
-    "description": "공격을 3회 적중시키면 사용할 수 있습니다.",
+    "name": "파동검기",
+    "description": "스킬을 3회 적중시키면 사용할 수 있습니다.",
     "moveId": "Space",
-    "condition": { "type": "landHits", "target": 3 }
+    "condition": { "type": "landHits", "target": 3 },
+    "readyEffectAnimation": "P",
+    "readyEffectTicks": 40
   },
   "skills": [
     {
-      "skillId": "A",
-      "staminaCost": 10,
-      "startupFrames": 3,
-      "cooldown": 6,
-      "characterAnimations": [
-        {
-          "id": "94680f9d-494d-4df0-9b76-d46d3836c8ac",
-          "name": "베기",
-          "loop": false
-        }
-      ],
+      "skillId": "Shift", "label": "방어", "kind": "guard", "staminaCost": 0,
+      "guardStaminaPerSecond": 10, "damageReduction": 0.25, "cooldownSeconds": 0,
+      "characterAnimations": [{ "id": "f26e7f1e-f454-4f0c-a168-f8a442611033", "name": "방어", "loop": false }],
       "effectAnimations": []
     },
     {
-      "skillId": "Space",
-      "label": "결전의 일격",
-      "staminaCost": 60,
-      "startupFrames": 4,
-      "active": 8,
-      "recovery": 30,
-      "cooldown": 30,
-      "characterAnimations": [],
+      "skillId": "A", "label": "베기", "kind": "melee", "staminaCost": 10, "damage": 10,
+      "startupFrames": 3, "activeFrames": 1, "recoveryFrames": 2, "cooldownSeconds": 0.1,
+      "reach": 28, "height": 32, "hitstun": 10,
+      "characterAnimations": [{ "id": "94680f9d-494d-4df0-9b76-d46d3836c8ac", "name": "베기", "loop": false }],
       "effectAnimations": []
+    },
+    {
+      "skillId": "S", "label": "충격", "kind": "area", "staminaCost": 15, "damage": 5,
+      "startupFrames": 2, "activeFrames": 1, "recoveryFrames": 1, "cooldownSeconds": 5,
+      "areaWidth": 60, "height": 32, "stunSeconds": 0.5, "hitstun": 0,
+      "knockback": { "x": 0, "y": 0 },
+      "characterAnimations": [{ "id": "da0cab79-7f1e-49cf-8df3-8ec797415dda", "name": "충격", "loop": false }],
+      "effectAnimations": []
+    },
+    {
+      "skillId": "Move",
+      "characterAnimations": [{ "id": "cb47a083-5626-4414-aaf5-b099ebb312ff", "name": "Move", "loop": false }],
+      "effectAnimations": []
+    },
+    {
+      "skillId": "D", "label": "찌르기", "kind": "melee", "staminaCost": 15, "damage": 10,
+      "startupFrames": 2, "activeFrames": 1, "recoveryFrames": 2, "cooldownSeconds": 2,
+      "reach": 45, "height": 32, "hitstun": 12,
+      "characterAnimations": [{ "id": "314d1032-ff93-4515-8539-a135000007cb", "name": "찌르기", "loop": false }],
+      "effectAnimations": []
+    },
+    {
+      "skillId": "Space", "label": "파동검기", "kind": "projectile", "staminaCost": 60, "damage": 30,
+      "startupFrames": 3, "activeFrames": 1, "recoveryFrames": 2, "cooldownSeconds": 0, "hitstun": 18,
+      "projectile": { "width": 45, "height": 40, "speed": 8, "lifetime": 120 },
+      "characterAnimations": [{ "id": "b1852e6d-4c10-4d8a-a306-a5a100789508", "name": "파동검기", "loop": false }],
+      "effectAnimations": [{ "id": "f6d42b9c-beb0-4dd8-9459-0fa2a5871f1e", "name": "검기", "loop": true, "startFrame": 0 }]
+    },
+    {
+      "skillId": "P",
+      "characterAnimations": [],
+      "effectAnimations": [{ "id": "98e33aeb-f070-4092-901b-7d99297c99f5", "name": "effect_2", "loop": false, "startFrame": 0 }]
     }
   ]
 }

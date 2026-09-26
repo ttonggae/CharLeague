@@ -4,6 +4,7 @@ export interface AttackPress { button: Button; horizontal: -1 | 0 | 1; up: boole
 export interface InputFrame {
   left: boolean; right: boolean; up: boolean; down: boolean;
   attacks: AttackPress[];
+  heldSkills: Button[];
 }
 
 const keysToStop = new Set(['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'ShiftLeft', 'ShiftRight', 'Space', 'KeyA', 'KeyS', 'KeyD']);
@@ -51,7 +52,8 @@ export class KeyboardInput {
     return {
       left: this.hasAction(ACTION_IDS.moveLeft), right: this.hasAction(ACTION_IDS.moveRight),
       up: this.hasAction(ACTION_IDS.jump), down: this.hasAction(ACTION_IDS.drop),
-      attacks: this.attacks.splice(0)
+      attacks: this.attacks.splice(0),
+      heldSkills: (['A', 'S', 'D', 'Shift', 'Space'] as Button[]).filter(action => this.hasAction(action))
     };
   }
 

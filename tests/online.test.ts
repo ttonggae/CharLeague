@@ -11,6 +11,7 @@ const hans = parseCharacter(hansRaw, 'hans');
 
 test('packed input preserves movement and all five skill inputs', () => {
   const input: InputFrame = { ...emptyInput(), left: true, up: true,
+    heldSkills: ['A', 'Shift'],
     attacks: [
       { button: 'A', horizontal: -1, up: true, down: false },
       { button: 'S', horizontal: 1, up: false, down: true },
@@ -19,9 +20,10 @@ test('packed input preserves movement and all five skill inputs', () => {
       { button: 'Space', horizontal: 1, up: true, down: false }
     ] };
   assert.deepEqual(unpackInput(packInput(input)), input);
-  assert.equal(validInputBits(1 << 29), false);
+  assert.equal(validInputBits(2 ** 29), true);
+  assert.equal(validInputBits(2 ** 34), false);
   assert.equal(parseInputPacket({ kind: 'input', frame: -1, bits: 0 }), null);
-  assert.equal(parseInputPacket({ kind: 'input', frame: 4, bits: 1 << 29 }), null);
+  assert.notEqual(parseInputPacket({ kind: 'input', frame: 4, bits: 2 ** 29 }), null);
   assert.equal(tokenFromFragment('#duel=' + 'a'.repeat(48)), 'a'.repeat(48));
   assert.equal(tokenFromFragment('#duel=short'), null);
 });

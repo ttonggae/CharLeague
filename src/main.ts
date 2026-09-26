@@ -131,7 +131,8 @@ function renderChoice(side: 0 | 1): void {
     const directions = { any: '', forward: '전방 + ', back: '후방 + ', up: '↑ + ', down: '↓ + ' };
     for (const move of entry?.data?.moves ?? []) {
       const ultimate = entry?.data?.ultimate?.moveId === move.id ? '궁극기 · ' : '';
-      const line = document.createElement('p'); line.textContent = `${directions[move.direction]}${move.sequence.join(' → ')} · ${ultimate}${move.label} · 기력 ${move.staminaCost}`; available.append(line);
+      const cost = move.kind === 'guard' ? `초당 기력 ${move.guardStaminaPerSecond ?? 0}` : `기력 ${move.staminaCost}`;
+      const line = document.createElement('p'); line.textContent = `${directions[move.direction]}${move.sequence.join(' → ')} · ${ultimate}${move.label} · ${cost}`; available.append(line);
     }
     if (entry?.data) {
       const passive = document.createElement('p'); passive.textContent = `패시브 · ${entry.data.passive.name}: ${entry.data.passive.description}`; available.prepend(passive);

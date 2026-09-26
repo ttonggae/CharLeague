@@ -3,10 +3,10 @@ import type { InputFrame, AttackPress } from './input.ts';
 import { Game, emptyInput, type GameSnapshot } from './game.ts';
 import type { CharacterEntry } from './characters.ts';
 
-export const ONLINE_VERSION = 'grim-war-online-5';
+export const ONLINE_VERSION = 'grim-war-online-6';
 export const INPUT_DELAY = 3;
 const MAX_FRAME = 1_000_000_000;
-const INPUT_MASK = (1 << 29) - 1;
+const INPUT_MASK = 2 ** 34 - 1;
 const object = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null && !Array.isArray(value);
 const integer = (value: unknown, min: number, max: number): value is number => Number.isInteger(value) && (value as number) >= min && (value as number) <= max;
 
@@ -50,6 +50,7 @@ export function packInput(input: InputFrame): number {
     const press = input.attacks.find(item => item.button === attackButtons[i]);
     if (press) bits |= (1 << (4 + i)) | (pressCode(press) << (9 + i * 4));
   }
+  for (let i = 0; i < attackButtons.length; i++) if (input.heldSkills.includes(attackButtons[i])) bits += 2 ** (29 + i);
   return bits;
 }
 
@@ -72,6 +73,7 @@ export function unpackInput(bits: number): InputFrame {
     frame.attacks.push({ button: attackButtons[i], horizontal: code % 4 === 1 ? -1 : code % 4 === 2 ? 1 : 0,
       up: !!(code & 4), down: !!(code & 8) });
   }
+  frame.heldSkills = attackButtons.filter((_, index) => Math.floor(bits / 2 ** (29 + index)) % 2 === 1);
   return frame;
 }
 
@@ -87,7 +89,7 @@ export function parseHashPacket(raw: unknown): HashPacket | null {
     && typeof raw.hash === 'string' && /^[a-f0-9]{8}$/.test(raw.hash) ? raw as unknown as HashPacket : null;
 }
 
-const states = new Set<FighterState>(['idle', 'move', 'jump', 'fall', 'guard', 'attack', 'hurt', 'ko']);
+const states = new Set<FighterState>(['idle', 'move', 'jump', 'fall', 'guard', 'attack', 'hurt', 'stun', 'ko']);
 function validFighter(raw: unknown, gameFighter: Game['player']): boolean {
   if (!object(raw)) return false;
   for (const key of ['x', 'y', 'vx', 'vy']) if (typeof raw[key] !== 'number' || !Number.isFinite(raw[key]) || Math.abs(raw[key]) > 10_000) return false;
@@ -97,8 +99,10 @@ function validFighter(raw: unknown, gameFighter: Game['player']): boolean {
     || typeof raw.stamina !== 'number' || !Number.isFinite(raw.stamina) || raw.stamina < 0 || raw.stamina > gameFighter.data.maxStamina
     || typeof raw.ultimateProgress !== 'number' || !Number.isFinite(raw.ultimateProgress) || raw.ultimateProgress < 0 || raw.ultimateProgress > ultimateTarget
     || (raw.facing !== -1 && raw.facing !== 1)
-    || !states.has(raw.state as FighterState) || typeof raw.guarding !== 'boolean'
+    || !states.has(raw.state as FighterState) || typeof raw.guarding !== 'boolean' || typeof raw.guardHeld !== 'boolean'
     || !integer(raw.hurtTicks, 0, 10_000)
+    || !integer(raw.stunTicks, 0, 10_000)
+    || (raw.ultimateReadyEffectTick !== null && !integer(raw.ultimateReadyEffectTick, 0, 10_000))
     || !object(cooldowns)
     || !SKILL_IDS.every(id => integer(cooldowns[id], 0, MAX_FRAME))) return false;
   if (raw.attack === null) return true;
@@ -106,6 +110,17 @@ function validFighter(raw: unknown, gameFighter: Game['player']): boolean {
   const attack = raw.attack;
   return gameFighter.data.moves.some(move => move.id === attack.moveId)
     && integer(attack.tick, 0, 10_000) && typeof attack.hit === 'boolean';
+}
+function validProjectiles(raw: unknown, game: Game): boolean {
+  if (!Array.isArray(raw) || raw.length > 32) return false;
+  return raw.every(projectile => {
+    if (!object(projectile) || (projectile.owner !== 0 && projectile.owner !== 1)
+      || !SKILL_IDS.includes(projectile.moveId as typeof SKILL_IDS[number])
+      || !integer(projectile.age, 0, 10_000)) return false;
+    for (const key of ['x', 'y', 'vx']) if (typeof projectile[key] !== 'number' || !Number.isFinite(projectile[key]) || Math.abs(projectile[key]) > 10_000) return false;
+    const fighter = projectile.owner === 0 ? game.player : game.dummy;
+    return fighter.data.moves.some(move => move.id === projectile.moveId && move.kind === 'projectile');
+  });
 }
 function validControls(raw: unknown): boolean {
   if (!Array.isArray(raw) || raw.length !== 2) return false;
@@ -128,7 +143,7 @@ export function parseSnapshotPacket(raw: unknown, game: Game): SnapshotPacket | 
     || ![null, 'player', 'dummy'].includes(state.seriesWinner as null | string)
     || (state.seriesWinner !== null && (state.seriesWinner !== state.winner
       || state.roundWins[state.seriesWinner === 'player' ? 0 : 1] !== 2))
-    || !integer(state.dummyCooldown, 0, 10_000) || !validControls(state.controls)
+    || !integer(state.dummyCooldown, 0, 10_000) || !validControls(state.controls) || !validProjectiles(state.projectiles, game)
     || !validFighter(state.player, game.player)
     || !validFighter(state.dummy, game.dummy)) return null;
   return raw as unknown as SnapshotPacket;

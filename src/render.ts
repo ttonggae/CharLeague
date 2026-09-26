@@ -12,12 +12,15 @@ export function attackEffectAnchor(f: Fighter, move: MoveData): { x: number; y: 
 export interface SkillStatus { available: boolean; label: string; remainingTicks: number }
 
 export function skillStatus(fighter: Fighter, move: MoveData, tick: number): SkillStatus {
+  if (move.kind === 'guard' && fighter.guarding) return { available: false, label: '사용 중', remainingTicks: 0 };
   if (fighter.attack?.move.id === move.id) return { available: false, label: '사용 중', remainingTicks: 0 };
   const remainingTicks = Math.max(0, fighter.cooldowns[move.id] - tick);
   if (remainingTicks > 0) return { available: false, label: `쿨 ${Math.ceil(remainingTicks / 6) / 10}초`, remainingTicks };
   if (fighter.hp <= 0) return { available: false, label: 'K.O.', remainingTicks: 0 };
+  if (fighter.stunTicks > 0) return { available: false, label: '기절 중', remainingTicks: 0 };
   if (fighter.hurtTicks > 0) return { available: false, label: '피격 중', remainingTicks: 0 };
   if (fighter.attack) return { available: false, label: '행동 중', remainingTicks: 0 };
+  if (move.kind === 'guard' && fighter.stamina <= 0) return { available: false, label: '기력 부족', remainingTicks: 0 };
   if (fighter.stamina < move.staminaCost) return { available: false, label: '기력 부족', remainingTicks: 0 };
   if (isUltimateMove(fighter, move) && !isUltimateReady(fighter)) {
     const target = fighter.data.ultimate?.condition.target ?? 0;
@@ -42,6 +45,9 @@ export class Renderer {
     this.fighter(game.player, this.playerAtlas, game.tick);
     this.fighter(game.dummy, this.dummyAtlas, game.tick);
     this.effect(game.player, this.playerAtlas); this.effect(game.dummy, this.dummyAtlas);
+    this.projectiles(game);
+    this.readyEffect(game.player, this.playerAtlas); this.readyEffect(game.dummy, this.dummyAtlas);
+    this.stunLabel(game.player); this.stunLabel(game.dummy);
     this.fighterLabel(game.player, 'P1', '#fff');
     this.fighterLabel(game.dummy, 'P2', '#d6d6d6');
     this.hud(game, !!networkLabel, viewerSide);
@@ -125,6 +131,7 @@ export class Renderer {
     const attack = f.attack;
     if (!attack) return;
     const { move, tick } = attack;
+    if (move.kind === 'projectile' || move.kind === 'guard') return;
     if (tick < move.startup || tick >= move.startup + move.active) return;
     const { x, y } = attackEffectAnchor(f, move);
     const scale = f.data.spriteScale ?? animationScale(atlas, 'idle', f.data.height);
@@ -139,6 +146,40 @@ export class Renderer {
     c.strokeStyle = '#fff'; c.lineWidth = frame === 0 ? 9 : 5; c.stroke();
     c.fillStyle = '#111'; c.fillRect(-5, -move.height * 0.25, move.reach * 0.55, 5);
     c.restore();
+  }
+
+  private projectiles(game: Game): void {
+    for (const projectile of game.projectiles) {
+      const fighter = projectile.owner === 0 ? game.player : game.dummy;
+      const atlas = projectile.owner === 0 ? this.playerAtlas : this.dummyAtlas;
+      const move = fighter.data.moves.find(candidate => candidate.id === projectile.moveId);
+      if (!move?.projectile) continue;
+      const facing: -1 | 1 = projectile.vx < 0 ? -1 : 1;
+      const scale = fighter.data.spriteScale ?? animationScale(atlas, 'idle', fighter.data.height);
+      if (drawAtlasFrame(this.ctx, atlas, 'effects', move.effectAnimation ?? move.effect, projectile.age, projectile.x, projectile.y, facing, scale)) continue;
+      const c = this.ctx;
+      c.save(); c.translate(projectile.x, projectile.y); c.scale(facing, 1);
+      c.fillStyle = '#fff'; c.strokeStyle = '#111'; c.lineWidth = 3;
+      c.fillRect(-move.projectile.width / 2, -move.projectile.height / 2, move.projectile.width, move.projectile.height);
+      c.strokeRect(-move.projectile.width / 2, -move.projectile.height / 2, move.projectile.width, move.projectile.height);
+      c.restore();
+    }
+  }
+
+  private readyEffect(fighter: Fighter, atlas: LoadedAtlas | null): void {
+    const key = fighter.data.ultimate?.readyEffectAnimation;
+    if (fighter.ultimateReadyEffectTick === null || !key) return;
+    const scale = fighter.data.spriteScale ?? animationScale(atlas, 'idle', fighter.data.height);
+    drawAtlasFrame(this.ctx, atlas, 'effects', key, fighter.ultimateReadyEffectTick, fighter.x, fighter.y - fighter.data.height - 22, 1, scale);
+  }
+
+  private stunLabel(fighter: Fighter): void {
+    if (fighter.stunTicks <= 0) return;
+    const c = this.ctx;
+    c.save(); c.textAlign = 'center'; c.font = '800 12px system-ui, sans-serif';
+    c.fillStyle = '#fff'; c.fillRect(fighter.x - 25, fighter.y - fighter.data.height - 62, 50, 20);
+    c.strokeStyle = '#111'; c.lineWidth = 1; c.strokeRect(fighter.x - 25, fighter.y - fighter.data.height - 62, 50, 20);
+    c.fillStyle = '#111'; c.fillText('기절', fighter.x, fighter.y - fighter.data.height - 47); c.restore();
   }
 
   private hud(game: Game, online: boolean, viewerSide: 0 | 1): void {
@@ -161,7 +202,8 @@ export class Renderer {
     c.fillText(`HP ${game.player.hp} · 기력 ${Math.ceil(game.player.stamina)}${ultimateStatus(game.player) ? ` · ${ultimateStatus(game.player)}` : ''}`, 213, 105);
     c.fillText(`HP ${game.dummy.hp} · 기력 ${Math.ceil(game.dummy.stamina)}${ultimateStatus(game.dummy) ? ` · ${ultimateStatus(game.dummy)}` : ''}`, 747, 105);
     const localFighter = viewerSide === 0 ? game.player : game.dummy;
-    const notice = localFighter.attack?.move.label ?? (game.tick - game.noticeTick < 82 ? game.notice : null);
+    const guardMove = localFighter.guarding ? localFighter.data.moves.find(move => move.kind === 'guard') : undefined;
+    const notice = localFighter.attack?.move.label ?? guardMove?.label ?? (game.tick - game.noticeTick < 82 ? game.notice : null);
     if (!game.winner && notice) {
       c.fillStyle = '#fff'; c.fillRect(364, 126, 232, 48);
       c.strokeStyle = '#111'; c.lineWidth = 2; c.strokeRect(364, 126, 232, 48);
@@ -191,7 +233,8 @@ export class Renderer {
       c.fillText(this.commandLabel(move), x + 33, y + 19);
       c.fillStyle = state.available ? '#111' : '#666'; c.font = '800 13px system-ui, sans-serif'; c.textAlign = 'left';
       c.fillText(move.label, x + 66, y + 19, Math.max(20, width - 72));
-      c.font = '700 11px system-ui, sans-serif'; c.fillText(`${state.label} · 기력 ${move.staminaCost}`, x + 8, y + 43, width - 16);
+      const cost = move.kind === 'guard' ? `초당 ${move.guardStaminaPerSecond ?? 0}` : `기력 ${move.staminaCost}`;
+      c.font = '700 11px system-ui, sans-serif'; c.fillText(`${state.label} · ${cost}`, x + 8, y + 43, width - 16);
     });
     c.restore();
   }
