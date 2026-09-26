@@ -31,6 +31,7 @@ h1 { margin: 0; font-size: clamp(36px, 5vw, 58px); line-height: 1.1; font-weight
 .pause-overlay strong { font-size: 28px; }
 .pause-overlay p { margin: 0; font-size: 14px; font-weight: 700; }
 .pause-overlay button { padding: 11px 24px; border: 2px solid #111; background: #111; color: #fff; font-weight: 800; }
+.pause-overlay button:disabled { opacity: .4; cursor: not-allowed; }
 .selection-title { display: flex; justify-content: space-between; align-items: start; gap: 15px; margin-bottom: 20px; }
 .selection-title h2 { margin: 0; font-size: 27px; letter-spacing: -.04em; }
 .selection-title p:last-child { margin: 6px 0 0; color: #555; font-size: 13px; }

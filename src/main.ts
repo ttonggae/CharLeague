@@ -70,7 +70,9 @@ let pausePhase: PausePhase = 'running';
 let pauseId = 0;
 let resumeUntil = 0;
 let resumeSyncStartedAt = 0;
-let lastHostInputAt = performance.now();
+let lastRemoteInputAt = performance.now();
+let remoteVisible = true;
+let guestReadyPauseId = 0;
 
 function resizeGameCanvas(): void {
   if (arenaScreen.hidden) return;
@@ -256,36 +258,44 @@ function beginCountdown(packet: Extract<ControlPacket, { kind: 'start' }>): void
   renderChoice(0);
 }
 
-function showOnlinePause(title: string, detail: string, canResume = false): void {
+function showOnlinePause(detail: string, canResume = false): void {
   if (!game || mode !== 'online') return;
-  pauseTitle.textContent = title; pauseDetail.textContent = detail;
-  resumeButton.hidden = !canResume; pauseOverlay.hidden = false;
+  pauseTitle.textContent = '상대와의 연결 대기'; pauseDetail.textContent = detail;
+  resumeButton.hidden = onlineRole !== 'host' || pausePhase !== 'paused'; resumeButton.disabled = !canResume; pauseOverlay.hidden = false;
+}
+
+function guestCanResume(): boolean {
+  return onlineRole === 'host' && !document.hidden && remoteVisible && guestReadyPauseId === pauseId;
 }
 
 function pauseHost(detail: string): void {
   if (mode !== 'online' || onlineRole !== 'host' || !match || !connection?.connected) return;
-  if (pausePhase === 'running' || pausePhase === 'countdown') pauseId = pauseId >= 1_000_000_000 ? 1 : pauseId + 1;
+  if (pausePhase === 'running' || pausePhase === 'countdown') {
+    pauseId = pauseId >= 1_000_000_000 ? 1 : pauseId + 1;
+  }
+  guestReadyPauseId = 0;
   pausePhase = 'paused'; resumeUntil = 0; resumeSyncStartedAt = 0; input.read();
   connection.sendControl({ kind: 'pause', id: pauseId, frame: match.frame });
-  showOnlinePause('온라인 대전 일시정지', detail, !document.hidden);
+  connection.sendControl({ kind: 'presence-check', id: pauseId });
+  showOnlinePause(detail, guestCanResume());
 }
 
 function pauseGuest(detail: string): void {
   if (mode !== 'online' || onlineRole !== 'guest' || !match) return;
   pausePhase = 'paused'; resumeUntil = 0; resumeSyncStartedAt = 0; input.read();
-  showOnlinePause('온라인 대전 일시정지', detail);
+  showOnlinePause(detail);
 }
 
 function beginResumeCountdown(id: number): void {
   if (!match || id !== pauseId) return;
   pausePhase = 'countdown'; resumeUntil = performance.now() + 3_000; resumeSyncStartedAt = 0; input.read();
-  showOnlinePause('곧 다시 시작합니다', '3초 후 시작');
+  showOnlinePause('3초 후 시작');
 }
 
 function requestOnlineResume(): void {
-  if (onlineRole !== 'host' || pausePhase !== 'paused' || !match || !connection?.connected) return;
+  if (onlineRole !== 'host' || pausePhase !== 'paused' || !match || !connection?.connected || !guestCanResume()) return;
   pausePhase = 'syncing'; resumeSyncStartedAt = performance.now();
-  showOnlinePause('상태 동기화 중', '상대의 재개 준비를 기다리는 중');
+  showOnlinePause('상태 동기화 중');
   connection.sendControl({ kind: 'pause', id: pauseId, frame: match.frame });
   connection.sendResumeState(match.createResumeState(pauseId));
 }
@@ -311,9 +321,26 @@ function receiveControl(packet: ControlPacket): void {
     beginCountdown(packet);
   } else if (packet.kind === 'pause' && onlineRole === 'guest' && match && packet.id >= pauseId) {
     pauseId = packet.id;
-    pauseGuest('호스트가 화면으로 돌아올 때까지 기다리는 중');
+    pauseGuest('양쪽 화면이 활성 상태가 될 때까지 기다리는 중');
+    if (!document.hidden) connection?.sendControl({ kind: 'presence-ready', id: pauseId });
   } else if (packet.kind === 'pause-request' && onlineRole === 'host' && match) {
-    pauseHost('백그라운드 전환이 감지되었습니다');
+    remoteVisible = false; guestReadyPauseId = 0;
+    pauseHost('양쪽 화면이 활성 상태가 될 때까지 기다리는 중');
+  } else if (packet.kind === 'presence' && match) {
+    remoteVisible = packet.visible;
+    if (!packet.visible) {
+      guestReadyPauseId = 0;
+      if (onlineRole === 'host') pauseHost('양쪽 화면이 활성 상태가 될 때까지 기다리는 중');
+      else pauseGuest('양쪽 화면이 활성 상태가 될 때까지 기다리는 중');
+    } else if (onlineRole === 'host' && pausePhase === 'paused') {
+      showOnlinePause('게스트의 활성 상태 확인을 기다리는 중', guestCanResume());
+    }
+  } else if (packet.kind === 'presence-check' && onlineRole === 'guest' && match && packet.id >= pauseId) {
+    pauseId = packet.id; pauseGuest('양쪽 화면이 활성 상태가 될 때까지 기다리는 중');
+    if (!document.hidden) connection?.sendControl({ kind: 'presence-ready', id: packet.id });
+  } else if (packet.kind === 'presence-ready' && onlineRole === 'host' && match && packet.id === pauseId) {
+    remoteVisible = true; guestReadyPauseId = packet.id;
+    if (pausePhase === 'paused') showOnlinePause('양쪽 화면이 활성 상태입니다. 호스트가 재개할 수 있습니다', guestCanResume());
   } else if (packet.kind === 'resume-ready' && onlineRole === 'host' && match
     && pausePhase === 'syncing' && packet.id === pauseId && packet.frame === match.frame) {
     connection?.sendControl({ kind: 'resume-go', id: pauseId, delayMs: 3_000 });
@@ -336,8 +363,14 @@ function startOnlineFight(config: Countdown): void {
   match.onResync = () => { status.textContent = '상태 동기화 복구'; };
   for (const packet of earlyInputs) match.receiveInput(packet);
   earlyInputs = [];
-  pausePhase = 'running'; pauseId = 0; resumeUntil = 0; resumeSyncStartedAt = 0; lastHostInputAt = performance.now(); pauseOverlay.hidden = true;
+  pausePhase = 'running'; pauseId = 0; resumeUntil = 0; resumeSyncStartedAt = 0;
+  lastRemoteInputAt = performance.now(); remoteVisible = true; guestReadyPauseId = 0; pauseOverlay.hidden = true;
+  connection.sendControl({ kind: 'presence', visible: !document.hidden });
   countdown = null; countdownText.hidden = true; showArena();
+  if (document.hidden) {
+    if (onlineRole === 'host') pauseHost('양쪽 화면이 활성 상태가 될 때까지 기다리는 중');
+    else { pauseGuest('양쪽 화면이 활성 상태가 될 때까지 기다리는 중'); connection.sendControl({ kind: 'pause-request' }); }
+  }
 }
 
 function finishOnlineSeries(): void {
@@ -358,7 +391,8 @@ async function enterOnline(role: OnlineRole, token: string): Promise<void> {
   if (role === 'host') sessionStorage.setItem('grim-host-token', token);
   else sessionStorage.removeItem('grim-host-token');
   localReady = false; remoteReady = null; pingMs = null;
-  pausePhase = 'running'; pauseId = 0; resumeUntil = 0; resumeSyncStartedAt = 0; lastHostInputAt = performance.now();
+  pausePhase = 'running'; pauseId = 0; resumeUntil = 0; resumeSyncStartedAt = 0;
+  lastRemoteInputAt = performance.now(); remoteVisible = true; guestReadyPauseId = 0;
   chosen = [null, null];
   location.hash = `duel=${token}`;
   required<HTMLElement>('#selection-heading').textContent = role === 'host' ? '온라인 대전 · P1' : '온라인 대전 · P2';
@@ -384,7 +418,7 @@ async function enterOnline(role: OnlineRole, token: string): Promise<void> {
       control: packet => { if (generation === connectionGeneration) receiveControl(packet); },
       input: packet => {
         if (generation !== connectionGeneration) return;
-        if (onlineRole === 'guest') lastHostInputAt = performance.now();
+        lastRemoteInputAt = performance.now();
         if (match) match.receiveInput(packet);
         else if (countdown && earlyInputs.length < 300) earlyInputs.push(packet);
       },
@@ -421,8 +455,16 @@ required<HTMLButtonElement>('#disconnect-retry').addEventListener('click', () =>
 required<HTMLButtonElement>('#disconnect-menu').addEventListener('click', enterMenu);
 resumeButton.addEventListener('click', requestOnlineResume);
 document.addEventListener('visibilitychange', () => {
-  if (mode !== 'online' || onlineRole !== 'host' || !match) return;
-  pauseHost(document.hidden ? '호스트 창이 백그라운드로 전환되었습니다' : '재개 버튼을 눌러 계속하세요');
+  if (mode !== 'online' || !match || !connection?.connected) return;
+  connection.sendControl({ kind: 'presence', visible: !document.hidden });
+  if (onlineRole === 'host') {
+    pauseHost('양쪽 화면이 활성 상태가 될 때까지 기다리는 중');
+  } else {
+    pauseGuest('양쪽 화면이 활성 상태가 될 때까지 기다리는 중');
+    if (document.hidden) connection.sendControl({ kind: 'pause-request' });
+    else if (pauseId > 0) connection.sendControl({ kind: 'presence-ready', id: pauseId });
+    else connection.sendControl({ kind: 'pause-request' });
+  }
 });
 startButton.addEventListener('click', () => {
   if (mode === 'online') { setLocalReady(!localReady); return; }
@@ -461,22 +503,26 @@ let previous = performance.now();
 let accumulator = 0;
 function frame(now: number) {
   const elapsed = Math.max(0, now - previous);
-  if (mode === 'online' && onlineRole === 'host' && match && elapsed > 750) pauseHost('백그라운드 전환이 감지되었습니다. 재개 버튼을 눌러 계속하세요');
-  if (mode === 'online' && onlineRole === 'guest' && match && pausePhase === 'running' && now - lastHostInputAt > 750) {
-    pauseGuest('호스트 신호가 멈췄습니다. 호스트의 재개를 기다리는 중');
-    connection?.sendControl({ kind: 'pause-request' });
+  if (mode === 'online' && match && elapsed > 750) {
+    if (onlineRole === 'host') pauseHost('양쪽 화면이 활성 상태가 될 때까지 기다리는 중');
+    else { pauseGuest('양쪽 화면이 활성 상태가 될 때까지 기다리는 중'); connection?.sendControl({ kind: 'pause-request' }); }
+  }
+  if (mode === 'online' && match && pausePhase === 'running' && now - lastRemoteInputAt > 750) {
+    remoteVisible = false;
+    if (onlineRole === 'host') { guestReadyPauseId = 0; pauseHost('양쪽 화면이 활성 상태가 될 때까지 기다리는 중'); }
+    else { pauseGuest('양쪽 화면이 활성 상태가 될 때까지 기다리는 중'); connection?.sendControl({ kind: 'pause-request' }); }
   }
   if (pausePhase === 'countdown') {
     const remaining = Math.max(0, Math.ceil((resumeUntil - now) / 1000));
     pauseDetail.textContent = remaining ? `${remaining}초 후 시작` : '대전 재개';
     if (!remaining) {
       pausePhase = 'running'; resumeUntil = 0; pauseOverlay.hidden = true;
-      lastHostInputAt = now; accumulator = 0; input.read();
+      lastRemoteInputAt = now; accumulator = 0; input.read();
     }
   }
   if (pausePhase === 'syncing' && onlineRole === 'host' && now - resumeSyncStartedAt > 2_000) {
     pausePhase = 'paused'; resumeSyncStartedAt = 0;
-    showOnlinePause('상태 동기화 응답 없음', '재개 버튼을 눌러 다시 시도하세요', true);
+    showOnlinePause('상태 동기화 응답이 없습니다. 재개 버튼을 눌러 다시 시도하세요', guestCanResume());
   }
   accumulator = Math.min(accumulator + elapsed, timestep * maxTicksPerFrame);
   previous = now;

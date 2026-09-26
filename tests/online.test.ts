@@ -33,6 +33,10 @@ test('packed input preserves movement and all five skill inputs', () => {
 test('pause controls validate ranges and delayed pre-pause inputs cannot enter a resumed match', () => {
   assert.deepEqual(parseControl({ kind: 'pause', id: 4, frame: 12 }), { kind: 'pause', id: 4, frame: 12 });
   assert.deepEqual(parseControl({ kind: 'pause-request' }), { kind: 'pause-request' });
+  assert.deepEqual(parseControl({ kind: 'presence', visible: false }), { kind: 'presence', visible: false });
+  assert.deepEqual(parseControl({ kind: 'presence-check', id: 4 }), { kind: 'presence-check', id: 4 });
+  assert.deepEqual(parseControl({ kind: 'presence-ready', id: 4 }), { kind: 'presence-ready', id: 4 });
+  assert.equal(parseControl({ kind: 'presence-ready', id: 0 }), null);
   assert.deepEqual(parseControl({ kind: 'resume-ready', id: 4, frame: 12 }), { kind: 'resume-ready', id: 4, frame: 12 });
   assert.deepEqual(parseControl({ kind: 'resume-go', id: 4, delayMs: 3_000 }), { kind: 'resume-go', id: 4, delayMs: 3_000 });
   assert.equal(parseControl({ kind: 'resume-go', id: 4, delayMs: 500 }), null);

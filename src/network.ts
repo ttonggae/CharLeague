@@ -10,6 +10,9 @@ export type ControlPacket =
   | { kind: 'start'; p1: string; p2: string; version: string; seed: number }
   | { kind: 'pause'; id: number; frame: number }
   | { kind: 'pause-request' }
+  | { kind: 'presence'; visible: boolean }
+  | { kind: 'presence-check'; id: number }
+  | { kind: 'presence-ready'; id: number }
   | { kind: 'resume-ready'; id: number; frame: number }
   | { kind: 'resume-go'; id: number; delayMs: number }
   | { kind: 'abort'; reason: string };
@@ -22,6 +25,7 @@ export function parseControl(raw: unknown): ControlPacket | null {
   if (!object(raw)) return null;
   if (raw.kind === 'unready') return { kind: 'unready' };
   if (raw.kind === 'pause-request') return { kind: 'pause-request' };
+  if (raw.kind === 'presence' && typeof raw.visible === 'boolean') return { kind: 'presence', visible: raw.visible };
   if (raw.kind === 'select' && characterId(raw.characterId) && version(raw.version))
     return { kind: 'select', characterId: raw.characterId, version: raw.version };
   if (raw.kind === 'ready' && characterId(raw.characterId) && version(raw.version))
@@ -32,6 +36,9 @@ export function parseControl(raw: unknown): ControlPacket | null {
   if (raw.kind === 'pause' && Number.isInteger(raw.id) && (raw.id as number) >= 1 && (raw.id as number) <= 1_000_000_000
     && Number.isInteger(raw.frame) && (raw.frame as number) >= 0 && (raw.frame as number) <= 1_000_000_000)
     return { kind: 'pause', id: raw.id as number, frame: raw.frame as number };
+  if ((raw.kind === 'presence-check' || raw.kind === 'presence-ready') && Number.isInteger(raw.id)
+    && (raw.id as number) >= 1 && (raw.id as number) <= 1_000_000_000)
+    return { kind: raw.kind, id: raw.id as number };
   if (raw.kind === 'resume-ready' && Number.isInteger(raw.id) && (raw.id as number) >= 1 && (raw.id as number) <= 1_000_000_000
     && Number.isInteger(raw.frame) && (raw.frame as number) >= 0 && (raw.frame as number) <= 1_000_000_000)
     return { kind: 'resume-ready', id: raw.id as number, frame: raw.frame as number };
