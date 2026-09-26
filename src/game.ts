@@ -8,7 +8,7 @@ export interface Fighter {
   data: CharacterData;
   x: number; y: number; vx: number; vy: number; facing: -1 | 1;
   hp: number; stamina: number; ultimateProgress: number; state: FighterState; guarding: boolean;
-  hurtTicks: number; attackCooldownUntilTick: number; attack: ActiveAttack | null;
+  hurtTicks: number; cooldowns: Record<Button, number>; attack: ActiveAttack | null;
 }
 interface BufferedPress extends AttackPress { tick: number; facing: -1 | 1 }
 interface ComboPress { button: Button; tick: number }
@@ -21,7 +21,7 @@ const controlMemory = (): ControlMemory => ({ pending: [], history: [] });
 export interface FighterSnapshot {
   x: number; y: number; vx: number; vy: number; facing: -1 | 1; hp: number; stamina: number; ultimateProgress: number;
   state: FighterState; guarding: boolean; hurtTicks: number;
-  attackCooldownUntilTick: number;
+  cooldowns: Record<Button, number>;
   attack: { moveId: string; tick: number; hit: boolean } | null;
 }
 export interface GameSnapshot {
@@ -32,7 +32,8 @@ export interface GameSnapshot {
 }
 
 function fighter(data: CharacterData, x: number, facing: -1 | 1): Fighter {
-  return { data, x, y: STAGE.floor, vx: 0, vy: 0, facing, hp: data.maxHp, stamina: data.maxStamina, ultimateProgress: 0, state: 'idle', guarding: false, hurtTicks: 0, attackCooldownUntilTick: 0, attack: null };
+  return { data, x, y: STAGE.floor, vx: 0, vy: 0, facing, hp: data.maxHp, stamina: data.maxStamina, ultimateProgress: 0, state: 'idle', guarding: false, hurtTicks: 0,
+    cooldowns: { A: 0, S: 0, D: 0, Shift: 0, Space: 0 }, attack: null };
 }
 function clamp(value: number, min: number, max: number): number { return Math.max(min, Math.min(max, value)); }
 
@@ -158,9 +159,8 @@ export class Game {
       const canCancel = current && !current.move.cooldown && current.move.sequence.length === 1 && current.move.sequence[0] === 'A'
         && current.tick >= current.move.startup + current.move.active
         && (press.button === 'A' || move.sequence.length > 1);
-      if ((current && !canCancel) || this.tick < f.attackCooldownUntilTick) return;
+      if ((current && !canCancel) || this.tick < f.cooldowns[move.id]) return;
       if (this.startAttack(f, move)) {
-        this.say(move.label);
         control.pending.splice(index, 1);
       }
       return;
@@ -192,11 +192,12 @@ export class Game {
   }
 
   private updateDummyAI(): void {
-    if (this.mode !== 'attack' || !this.canMove(this.dummy) || this.tick < this.dummy.attackCooldownUntilTick) return;
+    if (this.mode !== 'attack' || !this.canMove(this.dummy)) return;
     if (this.dummyCooldown > 0) { this.dummyCooldown--; return; }
     if (Math.abs(this.player.x - this.dummy.x) <= 134 && Math.abs(this.player.y - this.dummy.y) < 80) {
       const move = this.dummy.data.moves.find(candidate => candidate.id === this.dummy.data.dummyMoveId) ?? this.dummy.data.moves[0];
       if (!move) return;
+      if (this.tick < this.dummy.cooldowns[move.id]) { this.dummyCooldown = 1; return; }
       if (this.startAttack(this.dummy, move)) this.dummyCooldown = 115;
       else this.dummyCooldown = 15;
     }
@@ -213,7 +214,7 @@ export class Game {
       const { move, tick } = f.attack;
       if (tick >= move.startup + move.active + move.recovery) {
         f.attack = null;
-        f.attackCooldownUntilTick = this.tick + (move.cooldown ?? 0);
+        f.cooldowns[move.id] = this.tick + (move.cooldown ?? 0);
       }
     }
     f.x = clamp(f.x + f.vx, STAGE.left + f.data.width / 2, STAGE.right - f.data.width / 2);
@@ -261,7 +262,7 @@ export class Game {
       applyPassive(attacker, { type: 'landHit', move, value: damage });
       advanceUltimate(attacker, { type: 'landHit', move, value: damage });
     }
-    this.say(blocked ? 'BLOCK' : `${move.label} · ${move.damage}`);
+    this.say(blocked ? 'BLOCK' : `HIT · ${damage}`);
     if (defender.hp === 0) {
       this.winner = defender === this.dummy ? 'player' : 'dummy';
       defender.attack = null;
@@ -288,7 +289,7 @@ export class Game {
       x: f.x, y: f.y, vx: f.vx, vy: f.vy, facing: f.facing, hp: f.hp, stamina: f.stamina, ultimateProgress: f.ultimateProgress,
       state: f.state, guarding: f.guarding,
       hurtTicks: f.hurtTicks,
-      attackCooldownUntilTick: f.attackCooldownUntilTick,
+      cooldowns: { ...f.cooldowns },
       attack: f.attack ? { moveId: f.attack.move.id, tick: f.attack.tick, hit: f.attack.hit } : null
     });
     return {
@@ -307,7 +308,7 @@ export class Game {
         facing: saved.facing, hp: saved.hp, stamina: saved.stamina, ultimateProgress: saved.ultimateProgress, state: saved.state,
         guarding: saved.guarding,
         hurtTicks: saved.hurtTicks,
-        attackCooldownUntilTick: saved.attackCooldownUntilTick,
+        cooldowns: { ...saved.cooldowns },
         attack: saved.attack && move ? { move, tick: saved.attack.tick, hit: saved.attack.hit } : null };
     };
     const player = restoreFighter(this.playerCharacter, snapshot.player);

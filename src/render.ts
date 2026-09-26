@@ -1,12 +1,29 @@
 import { ANIMATION_FPS, STAGE, TICK_RATE, type MoveData } from './data.ts';
 import { animationGroundOffset, animationScale, drawAtlasFrame, fighterAnimation, type LoadedAtlas } from './atlas.ts';
 import { Game, type Fighter } from './game.ts';
-import { ultimateStatus } from './abilities.ts';
+import { isUltimateMove, isUltimateReady, ultimateStatus } from './abilities.ts';
 
 const W = STAGE.width, H = STAGE.height;
 
 export function attackEffectAnchor(f: Fighter, move: MoveData): { x: number; y: number } {
   return { x: f.x + f.facing * (f.data.width / 2 + move.reach * 0.48), y: f.y - move.height * 0.53 };
+}
+
+export interface SkillStatus { available: boolean; label: string; remainingTicks: number }
+
+export function skillStatus(fighter: Fighter, move: MoveData, tick: number): SkillStatus {
+  if (fighter.attack?.move.id === move.id) return { available: false, label: '사용 중', remainingTicks: 0 };
+  const remainingTicks = Math.max(0, fighter.cooldowns[move.id] - tick);
+  if (remainingTicks > 0) return { available: false, label: `쿨 ${Math.ceil(remainingTicks / 6) / 10}초`, remainingTicks };
+  if (fighter.hp <= 0) return { available: false, label: 'K.O.', remainingTicks: 0 };
+  if (fighter.hurtTicks > 0) return { available: false, label: '피격 중', remainingTicks: 0 };
+  if (fighter.attack) return { available: false, label: '행동 중', remainingTicks: 0 };
+  if (fighter.stamina < move.staminaCost) return { available: false, label: '기력 부족', remainingTicks: 0 };
+  if (isUltimateMove(fighter, move) && !isUltimateReady(fighter)) {
+    const target = fighter.data.ultimate?.condition.target ?? 0;
+    return { available: false, label: `조건 ${Math.floor(fighter.ultimateProgress)}/${target}`, remainingTicks: 0 };
+  }
+  return { available: true, label: '사용 가능', remainingTicks: 0 };
 }
 
 export class Renderer {
@@ -17,7 +34,7 @@ export class Renderer {
     this.ctx = ctx; this.playerAtlas = playerAtlas; this.dummyAtlas = dummyAtlas;
   }
 
-  draw(game: Game, networkLabel = ''): void {
+  draw(game: Game, networkLabel = '', viewerSide: 0 | 1 = 0): void {
     const ctx = this.ctx;
     ctx.clearRect(0, 0, W, H);
     this.background();
@@ -27,7 +44,7 @@ export class Renderer {
     this.effect(game.player, this.playerAtlas); this.effect(game.dummy, this.dummyAtlas);
     this.fighterLabel(game.player, 'P1', '#fff');
     this.fighterLabel(game.dummy, 'P2', '#d6d6d6');
-    this.hud(game, !!networkLabel);
+    this.hud(game, !!networkLabel, viewerSide);
     if (networkLabel) {
       ctx.fillStyle = '#fff'; ctx.fillRect(752, 126, 190, 28);
       ctx.strokeStyle = '#111'; ctx.lineWidth = 1; ctx.strokeRect(752, 126, 190, 28);
@@ -124,7 +141,7 @@ export class Renderer {
     c.restore();
   }
 
-  private hud(game: Game, online: boolean): void {
+  private hud(game: Game, online: boolean, viewerSide: 0 | 1): void {
     const c = this.ctx;
     c.fillStyle = '#fff'; c.fillRect(18, 16, 924, 102);
     c.strokeStyle = '#111'; c.lineWidth = 2; c.strokeRect(18, 16, 924, 102);
@@ -143,12 +160,45 @@ export class Renderer {
     c.font = '700 12px system-ui, sans-serif';
     c.fillText(`HP ${game.player.hp} · 기력 ${Math.ceil(game.player.stamina)}${ultimateStatus(game.player) ? ` · ${ultimateStatus(game.player)}` : ''}`, 213, 105);
     c.fillText(`HP ${game.dummy.hp} · 기력 ${Math.ceil(game.dummy.stamina)}${ultimateStatus(game.dummy) ? ` · ${ultimateStatus(game.dummy)}` : ''}`, 747, 105);
-    if (!game.winner && game.tick - game.noticeTick < 82) {
+    const localFighter = viewerSide === 0 ? game.player : game.dummy;
+    const notice = localFighter.attack?.move.label ?? (game.tick - game.noticeTick < 82 ? game.notice : null);
+    if (!game.winner && notice) {
       c.fillStyle = '#fff'; c.fillRect(364, 126, 232, 48);
       c.strokeStyle = '#111'; c.lineWidth = 2; c.strokeRect(364, 126, 232, 48);
-      c.font = '700 22px system-ui, sans-serif'; c.fillStyle = '#111'; c.fillText(game.notice, 480, 158);
+      c.font = '700 22px system-ui, sans-serif'; c.fillStyle = '#111'; c.fillText(notice, 480, 158);
     }
+    this.skillList(localFighter, game.tick);
     c.textAlign = 'left';
+  }
+
+  private skillList(fighter: Fighter, tick: number): void {
+    const moves = fighter.data.moves;
+    if (!moves.length) return;
+    const c = this.ctx;
+    const gap = 8;
+    const width = Math.min(178, (W - 36 - gap * (moves.length - 1)) / moves.length);
+    const total = width * moves.length + gap * (moves.length - 1);
+    const startX = (W - total) / 2;
+    c.save();
+    c.textBaseline = 'middle';
+    moves.forEach((move, index) => {
+      const x = startX + index * (width + gap), y = 468;
+      const state = skillStatus(fighter, move, tick);
+      c.fillStyle = state.available ? '#fff' : '#d2d2d2'; c.fillRect(x, y, width, 58);
+      c.strokeStyle = state.available ? '#111' : '#777'; c.lineWidth = state.available ? 2 : 1; c.strokeRect(x, y, width, 58);
+      c.fillStyle = state.available ? '#111' : '#777'; c.fillRect(x + 7, y + 8, 52, 21);
+      c.fillStyle = state.available ? '#fff' : '#eee'; c.font = '800 11px system-ui, sans-serif'; c.textAlign = 'center';
+      c.fillText(this.commandLabel(move), x + 33, y + 19);
+      c.fillStyle = state.available ? '#111' : '#666'; c.font = '800 13px system-ui, sans-serif'; c.textAlign = 'left';
+      c.fillText(move.label, x + 66, y + 19, Math.max(20, width - 72));
+      c.font = '700 11px system-ui, sans-serif'; c.fillText(`${state.label} · 기력 ${move.staminaCost}`, x + 8, y + 43, width - 16);
+    });
+    c.restore();
+  }
+
+  private commandLabel(move: MoveData): string {
+    const direction = { any: '', forward: '→+', back: '←+', up: '↑+', down: '↓+' }[move.direction];
+    return `${direction}${move.sequence.join('→')}`;
   }
 
   private healthBar(x: number, y: number, ratio: number, color: string, reverse: boolean): void {

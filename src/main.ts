@@ -18,6 +18,8 @@ const canvas = required<HTMLCanvasElement>('#game');
 const context = canvas.getContext('2d') as CanvasRenderingContext2D | null;
 if (!context) throw new Error('Canvas 2D를 사용할 수 없습니다');
 const drawContext: CanvasRenderingContext2D = context;
+const GAME_WIDTH = 960;
+const GAME_HEIGHT = 540;
 const input = new KeyboardInput();
 const menuScreen = required<HTMLElement>('#main-menu');
 const selectionScreen = required<HTMLElement>('#selection-screen');
@@ -59,6 +61,19 @@ let remoteReady: { characterId: string; version: string } | null = null;
 let countdown: Countdown | null = null;
 let earlyInputs: InputPacket[] = [];
 let previewTick = 0;
+
+function resizeGameCanvas(): void {
+  if (arenaScreen.hidden) return;
+  const rect = canvas.getBoundingClientRect();
+  if (rect.width < 1 || rect.height < 1) return;
+  const dpr = Math.min(window.devicePixelRatio || 1, 3);
+  const width = Math.max(GAME_WIDTH, Math.round(rect.width * dpr));
+  const height = Math.max(GAME_HEIGHT, Math.round(rect.height * dpr));
+  if (canvas.width === width && canvas.height === height) return;
+  canvas.width = width; canvas.height = height;
+  drawContext.setTransform(width / GAME_WIDTH, 0, 0, height / GAME_HEIGHT, 0, 0);
+  drawContext.imageSmoothingEnabled = false;
+}
 
 function label(entry: CharacterEntry): string { return entry.data?.name ?? entry.id; }
 function findCharacter(id: string): CharacterEntry | null { return entries.find(entry => entry.id === id && entry.data) ?? null; }
@@ -154,6 +169,8 @@ function showArena(): void {
   menuScreen.hidden = true; selectionScreen.hidden = true; arenaScreen.hidden = false; guide.hidden = true;
   document.body.classList.add('playing');
   input.read();
+  resizeGameCanvas();
+  requestAnimationFrame(resizeGameCanvas);
 }
 function hideArena(): void {
   game = null; renderer = null; match = null;
@@ -318,6 +335,7 @@ async function enterOnline(role: OnlineRole, token: string): Promise<void> {
 }
 
 required<HTMLButtonElement>('#local-mode').addEventListener('click', enterLocal);
+window.addEventListener('resize', resizeGameCanvas);
 required<HTMLButtonElement>('#online-mode').addEventListener('click', () => { void enterOnline('host', createInviteToken()); });
 window.addEventListener('hashchange', () => {
   const token = tokenFromFragment(location.hash);
@@ -381,7 +399,8 @@ function frame(now: number) {
     if (!remaining) startOnlineFight(countdown);
   }
   if (game && renderer) {
-    renderer.draw(game, mode === 'online' ? `P2P · ${pingMs === null ? '핑 --' : `${pingMs}ms`}` : '');
+    const viewerSide: 0 | 1 = mode === 'online' && onlineRole === 'guest' ? 1 : 0;
+    renderer.draw(game, mode === 'online' ? `P2P · ${pingMs === null ? '핑 --' : `${pingMs}ms`}` : '', viewerSide);
     status.textContent = game.winner ? `${game.winner === 'player' ? 'P1' : 'P2'} 승리` : `${game.player.state.toUpperCase()} · ${game.notice}`;
   } else { drawPreview(0); drawPreview(1); }
   requestAnimationFrame(frame);

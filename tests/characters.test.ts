@@ -4,6 +4,7 @@ import { readFile } from 'node:fs/promises';
 import { parseAtlas, drawAtlasFrame, animationScale, animationGroundOffset } from '../src/atlas.ts';
 import { parseCharacter, loadRoster } from '../src/characters.ts';
 import { Game, emptyInput } from '../src/game.ts';
+import { skillStatus } from '../src/render.ts';
 
 const json = async (path: string) => JSON.parse(await readFile(new URL(path, import.meta.url), 'utf8'));
 
@@ -61,13 +62,29 @@ test('hans A skill hits after 3 animation frames (15 ticks) and waits 6 ticks af
   assert.equal(game.dummy.hp, hans.maxHp - hans.moves[0].damage);
   for (let i = 0; i < 14; i++) game.update(emptyInput());
   assert.equal(game.player.attack, null);
-  assert.equal(game.player.attackCooldownUntilTick, game.tick + 6);
+  assert.equal(game.player.cooldowns.A, game.tick + 6);
   game.update(a());
   assert.equal(game.player.attack, null);
   for (let i = 0; i < 4; i++) game.update(emptyInput());
   assert.equal(game.player.attack, null);
   game.update(emptyInput());
   assert.equal(game.player.attack?.move.id, 'A');
+});
+
+test('in-game skill status distinguishes ready, cooldown, resource, condition, and active states', async () => {
+  const hans = parseCharacter(await json('../public/assets/characters/hans/character.json'), 'hans');
+  const game = new Game(hans, hans);
+  const slash = hans.moves.find(move => move.id === 'A')!;
+  const ultimate = hans.moves.find(move => move.id === 'Space')!;
+  assert.deepEqual(skillStatus(game.player, slash, game.tick), { available: true, label: '사용 가능', remainingTicks: 0 });
+  assert.equal(skillStatus(game.player, ultimate, game.tick).label, '조건 0/3');
+  game.player.cooldowns.A = game.tick + 61;
+  assert.deepEqual(skillStatus(game.player, slash, game.tick), { available: false, label: '쿨 1.1초', remainingTicks: 61 });
+  game.player.cooldowns.A = 0; game.player.stamina = 0;
+  assert.equal(skillStatus(game.player, slash, game.tick).label, '기력 부족');
+  game.player.stamina = hans.maxStamina;
+  game.update({ ...emptyInput(), attacks: [{ button: 'A', horizontal: 0, up: false, down: false }] });
+  assert.equal(skillStatus(game.player, slash, game.tick).label, '사용 중');
 });
 
 test('hans v3 atlas provides idle and A body frames without legacy control IDs', async () => {
