@@ -4,7 +4,7 @@ import { readFile } from 'node:fs/promises';
 import { parseAtlas, drawAtlasFrame, animationScale, animationGroundOffset, fighterAnimationTick } from '../src/atlas.ts';
 import { parseCharacter, loadRoster } from '../src/characters.ts';
 import { Game, emptyInput } from '../src/game.ts';
-import { skillStatus } from '../src/render.ts';
+import { isSkillStatusDimmed, skillStatus } from '../src/render.ts';
 import { WORLD_SCALE } from '../src/data.ts';
 
 const json = async (path: string) => JSON.parse(await readFile(new URL(path, import.meta.url), 'utf8'));
@@ -158,7 +158,10 @@ test('in-game skill status distinguishes ready, cooldown, resource, condition, a
   game.player.stamina = hans.maxStamina;
   game.update({ ...emptyInput(), attacks: [{ button: 'A', horizontal: 0, up: false, down: false }] });
   assert.equal(skillStatus(game.player, slash, game.tick).label, '사용 중');
-  assert.equal(skillStatus(game.player, hans.moves.find(move => move.id === 'S')!, game.tick).reason, 'busy');
+  const busy = skillStatus(game.player, hans.moves.find(move => move.id === 'S')!, game.tick);
+  assert.equal(busy.reason, 'busy');
+  assert.equal(isSkillStatusDimmed(busy.reason), true, 'other skills are dimmed while one skill is active');
+  assert.equal(isSkillStatusDimmed(skillStatus(game.player, slash, game.tick).reason), false, 'the active skill remains highlighted');
 });
 
 test('hans v3 atlas provides all body, projectile, and ultimate-ready effect frames', async () => {

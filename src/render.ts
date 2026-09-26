@@ -12,6 +12,10 @@ export function attackEffectAnchor(f: Fighter, move: MoveData): { x: number; y: 
 export type SkillStatusReason = 'ready' | 'active' | 'cooldown' | 'ko' | 'stun' | 'hurt' | 'busy' | 'stamina' | 'condition';
 export interface SkillStatus { available: boolean; label: string; remainingTicks: number; reason: SkillStatusReason }
 
+export function isSkillStatusDimmed(reason: SkillStatusReason): boolean {
+  return ['ko', 'stun', 'hurt', 'busy', 'stamina', 'condition'].includes(reason);
+}
+
 export function skillStatus(fighter: Fighter, move: MoveData, tick: number): SkillStatus {
   if (move.kind === 'guard' && fighter.guarding) return { available: false, label: '사용 중', remainingTicks: 0, reason: 'active' };
   if (fighter.attack?.move.id === move.id) return { available: false, label: '사용 중', remainingTicks: 0, reason: 'active' };
@@ -235,7 +239,7 @@ export class Renderer {
     moves.forEach((move, index) => {
       const x = startX + index * (width + gap), y = 493;
       const state = skillStatus(fighter, move, tick);
-      const dimmed = ['ko', 'stun', 'hurt', 'stamina', 'condition'].includes(state.reason);
+      const dimmed = isSkillStatusDimmed(state.reason);
       c.globalAlpha = dimmed ? 0.42 : 1;
       c.fillStyle = '#fff'; c.fillRect(x, y, width, height);
       c.strokeStyle = '#111'; c.lineWidth = state.reason === 'active' ? 2 : 1; c.strokeRect(x, y, width, height);
