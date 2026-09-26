@@ -7,18 +7,24 @@ import { Game, emptyInput } from '../src/game.ts';
 
 const json = async (path: string) => JSON.parse(await readFile(new URL(path, import.meta.url), 'utf8'));
 
-test('only hans is registered, and only its exported attack is playable', async () => {
+test('only hans is registered with stamina, passive, A skill, and a conditional Space ultimate', async () => {
   const index = await json('../public/assets/characters/index.json');
   assert.deepEqual(index.characters, ['hans']);
   const raw = await json('../public/assets/characters/hans/character.json');
   const hans = parseCharacter(raw, 'hans');
   assert.equal(hans.name, '한스');
   assert.equal(hans.portraitProvided, false);
-  assert.deepEqual(raw.skills.map((skill: { skillId: string }) => skill.skillId), ['A']);
-  assert.deepEqual(hans.moves.map(move => move.id), ['A']);
+  assert.deepEqual(raw.skills.map((skill: { skillId: string }) => skill.skillId), ['A', 'Space']);
+  assert.deepEqual(hans.moves.map(move => move.id), ['A', 'Space']);
+  assert.equal(hans.maxStamina, 100);
+  assert.equal(hans.staminaRegen, 0.2);
+  assert.equal(hans.passive.id, 'hans-blade-rhythm');
+  assert.equal(hans.ultimate?.moveId, 'Space');
+  assert.deepEqual(hans.ultimate?.condition, { type: 'landHits', target: 3 });
   assert.equal(hans.moves[0].label, '베기');
   assert.equal(hans.moves[0].startup, 15);
   assert.equal(hans.moves[0].cooldown, 6);
+  assert.equal(hans.moves[0].staminaCost, 10);
   assert.equal(hans.moves[0].bodyAnimation, 'A');
   assert.equal(hans.moves[0].effectAnimation, undefined);
 
@@ -30,6 +36,8 @@ test('only hans is registered, and only its exported attack is playable', async 
   game.update({ ...emptyInput(), attacks: [{ button: 'S', horizontal: 0, up: false, down: false }] });
   assert.equal(game.player.attack, null);
   game.update({ ...emptyInput(), attacks: [{ button: 'D', horizontal: 0, up: false, down: false }] });
+  assert.equal(game.player.attack, null);
+  game.update({ ...emptyInput(), attacks: [{ button: 'Space', horizontal: 0, up: false, down: false }] });
   assert.equal(game.player.attack, null);
   game.player.x = 400; game.dummy.x = 455;
   game.update({ ...emptyInput(), attacks: [{ button: 'A', horizontal: 0, up: false, down: false }] });

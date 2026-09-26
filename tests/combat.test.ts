@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { Game, emptyInput } from '../src/game.ts';
-import { SKILL_IDS, type Button } from '../src/data.ts';
+import { playerData, SKILL_IDS, type Button } from '../src/data.ts';
 import { KEY_ACTION_IDS } from '../src/input.ts';
 import { attackEffectAnchor } from '../src/render.ts';
 
@@ -37,13 +37,49 @@ test('fixed-tick movement, jump, gravity and floor collision remain; down does n
   assert.equal(game.player.state, 'idle');
 });
 
-test('A, S, D, Shift and Space resolve to data-defined skills with matching IDs', () => {
-  for (const button of SKILL_IDS) {
+test('A, S, D and Shift resolve to data-defined skills with matching IDs', () => {
+  for (const button of SKILL_IDS.filter(button => button !== 'Space')) {
     const game = new Game(); game.setMode('idle');
     press(game, button);
     assert.equal(game.player.attack?.move.id, button);
     assert.equal(game.player.guarding, false);
   }
+});
+
+test('skills spend stamina, regenerate it, and wait in the input buffer when stamina is insufficient', () => {
+  const game = new Game(); game.setMode('idle');
+  press(game, 'S');
+  assert.equal(game.player.attack?.move.id, 'S');
+  assert.ok(game.player.stamina > 80 && game.player.stamina < 81);
+  game.restart(); game.setMode('idle'); game.player.stamina = 5;
+  press(game, 'D');
+  assert.equal(game.player.attack, null);
+  assert.ok(game.player.stamina > 5);
+  advance(game, 14);
+  assert.equal(game.player.attack, null);
+});
+
+test('passive events and ultimate conditions are data-driven; ultimate use resets progress', () => {
+  const game = new Game(); game.setMode('idle');
+  game.player.stamina = 80;
+  for (let hit = 1; hit <= 3; hit++) {
+    game.player.x = 400; game.dummy.x = 455;
+    press(game, 'A'); advance(game, 18);
+    assert.equal(game.player.ultimateProgress, hit);
+  }
+  assert.ok(game.player.stamina > 65, 'hit passive restores stamina after each A cost');
+  press(game, 'Space');
+  assert.equal(game.player.attack?.move.id, 'Space');
+  assert.equal(game.player.ultimateProgress, 0);
+});
+
+test('Space works as a regular skill when the character has no ultimate config', () => {
+  const ordinary = structuredClone(playerData);
+  delete ordinary.ultimate;
+  const game = new Game(ordinary, ordinary); game.setMode('idle');
+  press(game, 'Space');
+  assert.equal(game.player.attack?.move.id, 'Space');
+  assert.equal(game.player.ultimateProgress, 0);
 });
 
 test('attack input is buffered for 15 ticks during recovery', () => {

@@ -1,6 +1,7 @@
 import { ANIMATION_FPS, STAGE, TICK_RATE, type MoveData } from './data.ts';
 import { animationGroundOffset, animationScale, drawAtlasFrame, fighterAnimation, type LoadedAtlas } from './atlas.ts';
 import { Game, type Fighter } from './game.ts';
+import { ultimateStatus } from './abilities.ts';
 
 const W = STAGE.width, H = STAGE.height;
 
@@ -28,10 +29,10 @@ export class Renderer {
     this.fighterLabel(game.dummy, 'P2', '#d6d6d6');
     this.hud(game, !!networkLabel);
     if (networkLabel) {
-      ctx.fillStyle = '#fff'; ctx.fillRect(752, 111, 190, 28);
-      ctx.strokeStyle = '#111'; ctx.lineWidth = 1; ctx.strokeRect(752, 111, 190, 28);
+      ctx.fillStyle = '#fff'; ctx.fillRect(752, 126, 190, 28);
+      ctx.strokeStyle = '#111'; ctx.lineWidth = 1; ctx.strokeRect(752, 126, 190, 28);
       ctx.fillStyle = '#111'; ctx.font = '700 13px system-ui, sans-serif'; ctx.textAlign = 'right';
-      ctx.fillText(networkLabel, 933, 130); ctx.textAlign = 'left';
+      ctx.fillText(networkLabel, 933, 145); ctx.textAlign = 'left';
     }
     if (game.winner) this.koOverlay(game, !!networkLabel);
   }
@@ -125,25 +126,27 @@ export class Renderer {
 
   private hud(game: Game, online: boolean): void {
     const c = this.ctx;
-    c.fillStyle = '#fff'; c.fillRect(18, 16, 924, 82);
-    c.strokeStyle = '#111'; c.lineWidth = 2; c.strokeRect(18, 16, 924, 82);
+    c.fillStyle = '#fff'; c.fillRect(18, 16, 924, 102);
+    c.strokeStyle = '#111'; c.lineWidth = 2; c.strokeRect(18, 16, 924, 102);
     this.healthBar(35, 44, game.player.hp / game.player.data.maxHp, '#222', false);
     this.healthBar(567, 44, game.dummy.hp / game.dummy.data.maxHp, '#555', true);
+    this.staminaBar(35, 73, game.player.stamina / game.player.data.maxStamina, false, !!game.player.data.ultimate && game.player.ultimateProgress >= game.player.data.ultimate.condition.target);
+    this.staminaBar(567, 73, game.dummy.stamina / game.dummy.data.maxStamina, true, !!game.dummy.data.ultimate && game.dummy.ultimateProgress >= game.dummy.data.ultimate.condition.target);
     c.fillStyle = '#111'; c.font = '700 18px system-ui, sans-serif'; c.textAlign = 'left'; c.fillText(game.player.data.name, 37, 38);
     c.textAlign = 'right'; c.fillText(game.dummy.data.name, 923, 38);
-    c.textAlign = 'center'; c.font = '800 28px system-ui, sans-serif'; c.fillText('VS', 480, 73);
+    c.textAlign = 'center'; c.font = '800 28px system-ui, sans-serif'; c.fillText('VS', 480, 69);
     if (online) {
       const round = game.roundWins[0] + game.roundWins[1] + (game.winner ? 0 : 1);
       c.font = '700 13px system-ui, sans-serif';
       c.fillText(`ROUND ${round} · P1 ${game.roundWins[0]} : ${game.roundWins[1]} P2`, 480, 37);
     }
-    c.font = '700 14px system-ui, sans-serif';
-    c.fillText(`${game.player.hp} / ${game.player.data.maxHp}`, 228, 88);
-    c.fillText(`${game.dummy.hp} / ${game.dummy.data.maxHp}`, 732, 88);
+    c.font = '700 12px system-ui, sans-serif';
+    c.fillText(`HP ${game.player.hp} · 기력 ${Math.ceil(game.player.stamina)}${ultimateStatus(game.player) ? ` · ${ultimateStatus(game.player)}` : ''}`, 213, 105);
+    c.fillText(`HP ${game.dummy.hp} · 기력 ${Math.ceil(game.dummy.stamina)}${ultimateStatus(game.dummy) ? ` · ${ultimateStatus(game.dummy)}` : ''}`, 747, 105);
     if (!game.winner && game.tick - game.noticeTick < 82) {
-      c.fillStyle = '#fff'; c.fillRect(364, 115, 232, 48);
-      c.strokeStyle = '#111'; c.lineWidth = 2; c.strokeRect(364, 115, 232, 48);
-      c.font = '700 22px system-ui, sans-serif'; c.fillStyle = '#111'; c.fillText(game.notice, 480, 147);
+      c.fillStyle = '#fff'; c.fillRect(364, 126, 232, 48);
+      c.strokeStyle = '#111'; c.lineWidth = 2; c.strokeRect(364, 126, 232, 48);
+      c.font = '700 22px system-ui, sans-serif'; c.fillStyle = '#111'; c.fillText(game.notice, 480, 158);
     }
     c.textAlign = 'left';
   }
@@ -155,6 +158,15 @@ export class Renderer {
     const valueWidth = Math.max(0, width * ratio);
     c.fillRect(reverse ? x + width - valueWidth : x, y, valueWidth, 22);
     c.strokeStyle = '#111'; c.lineWidth = 2; c.strokeRect(x, y, width, 22);
+  }
+
+  private staminaBar(x: number, y: number, ratio: number, reverse: boolean, ultimateReady: boolean): void {
+    const c = this.ctx, width = 356;
+    c.fillStyle = '#eee'; c.fillRect(x, y, width, 12);
+    c.fillStyle = ultimateReady ? '#111' : '#777';
+    const valueWidth = Math.max(0, width * ratio);
+    c.fillRect(reverse ? x + width - valueWidth : x, y, valueWidth, 12);
+    c.strokeStyle = '#111'; c.lineWidth = ultimateReady ? 2 : 1; c.strokeRect(x, y, width, 12);
   }
 
   private koOverlay(game: Game, online: boolean): void {

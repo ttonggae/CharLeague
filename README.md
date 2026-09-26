@@ -53,6 +53,8 @@ pnpm dev
 
 스킬 입력은 15틱(0.25초) 동안 보관됩니다. 더미는 기본적으로 가까워지면 선택된 캐릭터의 `dummyMoveId` 기술로 반격합니다. 조작 가이드는 캐릭터 선택 화면에만 표시합니다. 전투를 시작하면 게임 캔버스가 브라우저 화면 전체를 채우며 브라우저 전체화면 전환을 강제하지 않습니다. F11 등으로 브라우저 전체화면을 켜거나 꺼도 전투가 계속됩니다. 온라인 전투 중에는 나가기 조작이 없습니다. 연결이 끊긴 뒤에는 복구 화면에서 다시 연결하거나 메인 메뉴로 갈 수 있습니다.
 
+모든 기술은 `staminaCost`만큼 기력을 사용하며 무료 기술도 `0`을 명시합니다. 기력이 부족한 입력은 기존 15틱 입력 버퍼 동안 대기합니다. 기력은 캐릭터의 `staminaRegen`만큼 매 60Hz 틱 회복되며 체력바 아래의 기력바에 표시됩니다.
+
 게임 상태와 판정은 고정 60Hz로 갱신합니다. 캐릭터와 효과 아틀라스는 기본 5틱마다 프레임을 바꿔 12FPS로 표시합니다. 아틀라스는 이미지 보간 없이 정수 배율로 그려 작은 도트 이미지의 경계를 유지합니다. 캐릭터는 이동 방향을 바라보고 멈추면 마지막 방향을 유지합니다. 공격 판정과 효과도 바라보는 방향을 따릅니다. 전투 중 머리 위의 P1/P2 표시는 방향과 관계없이 읽을 수 있습니다. 캐릭터 아틀라스 로딩에 실패했을 때만 임시 색상 박스를 그립니다.
 
 ## 캐릭터 추가
@@ -81,6 +83,8 @@ ID는 영문, 숫자, `_`, `-`만 사용합니다. 아틀라스 시트가 여러
   "description": "선택 화면에 표시할 짧은 설명",
   "color": "#82e8ff",
   "maxHp": 100,
+  "maxStamina": 100,
+  "staminaRegen": 0.2,
   "walkSpeed": 4.1,
   "jumpSpeed": 13.4,
   "width": 42,
@@ -88,24 +92,50 @@ ID는 영문, 숫자, `_`, `-`만 사용합니다. 아틀라스 시트가 여러
   "atlas": "atlas.json",
   "portrait": "portrait.png",
   "dummyMoveId": "A",
+  "passive": {
+    "id": "blade-rhythm",
+    "name": "칼날의 리듬",
+    "description": "공격 적중 시 기력을 5 회복합니다.",
+    "trigger": "landHit",
+    "effects": [{ "type": "restoreStamina", "amount": 5 }]
+  },
+  "ultimate": {
+    "name": "결전의 일격",
+    "description": "공격 3회 적중 후 사용할 수 있습니다.",
+    "moveId": "Space",
+    "condition": { "type": "landHits", "target": 3 }
+  },
   "moves": [
     {
       "id": "A", "label": "평타", "sequence": ["A"], "direction": "any",
-      "startup": 5, "active": 4, "recovery": 10,
+      "startup": 5, "active": 4, "recovery": 10, "staminaCost": 10,
       "damage": 7, "chip": 1, "knockback": { "x": 3, "y": 0 },
       "hitstun": 11, "reach": 59, "height": 48,
       "effect": "A", "color": "#92efff",
       "bodyAnimation": "A", "effectAnimation": "A"
+    },
+    {
+      "id": "Space", "label": "결전의 일격", "sequence": ["Space"], "direction": "any",
+      "startup": 20, "active": 8, "recovery": 30, "staminaCost": 60,
+      "damage": 28, "chip": 4, "knockback": { "x": 11, "y": -5 },
+      "hitstun": 28, "reach": 112, "height": 78,
+      "effect": "Space", "color": "#ffffff"
     }
   ]
 }
 ```
 
-기술 시간은 60Hz 틱, 속도와 거리는 게임 좌표 단위입니다. `id`는 `A`, `S`, `D`, `Shift`, `Space` 중 하나이며 `sequence`의 마지막 값도 같은 ID여야 합니다. `direction`은 `any`, `forward`, `back`, `up`, `down` 중 하나입니다. 긴 입력 연계와 방향 조건 기술이 일반 기술보다 먼저 선택됩니다. `effect`는 기술 `id`와 같아야 하며 생략할 수 있습니다. `bodyAnimation`과 `effectAnimation`에는 통일된 기술 ID를 지정합니다. 생략하면 몸체는 `attack:<기술 id>`를, 효과는 기술 ID를 찾습니다. 몸체 애니메이션이 전체 캐릭터가 아니라 추가 파츠라면 `"bodyAnimationMode": "overlay"`를 지정해 idle 위에 겹쳐 그립니다. `spriteScale`을 설정하면 아틀라스 확대율을 직접 조정할 수 있습니다. 기본값은 `height / idle 원본 높이`를 올림한 정수 배율입니다. PNG의 원본 색상과 투명도를 그대로 사용하며 같은 캐릭터를 양쪽에 선택해도 변색하지 않습니다.
+기술 시간은 60Hz 틱, 속도와 거리는 게임 좌표 단위입니다. `id`는 `A`, `S`, `D`, `Shift`, `Space` 중 하나이며 `sequence`의 마지막 값도 같은 ID여야 합니다. 모든 기술은 `staminaCost`를 가져야 합니다. `direction`은 `any`, `forward`, `back`, `up`, `down` 중 하나입니다. 긴 입력 연계와 방향 조건 기술이 일반 기술보다 먼저 선택됩니다. `effect`는 기술 `id`와 같아야 하며 생략할 수 있습니다. `bodyAnimation`과 `effectAnimation`에는 통일된 기술 ID를 지정합니다. 생략하면 몸체는 `attack:<기술 id>`를, 효과는 기술 ID를 찾습니다. 몸체 애니메이션이 전체 캐릭터가 아니라 추가 파츠라면 `"bodyAnimationMode": "overlay"`를 지정해 idle 위에 겹쳐 그립니다. `spriteScale`을 설정하면 아틀라스 확대율을 직접 조정할 수 있습니다. 기본값은 `height / idle 원본 높이`를 올림한 정수 배율입니다. PNG의 원본 색상과 투명도를 그대로 사용하며 같은 캐릭터를 양쪽에 선택해도 변색하지 않습니다.
+
+### 패시브와 궁극기
+
+모든 캐릭터는 `passive`를 가집니다. 패시브는 이벤트 `skillUse`, `landHit`, `takeDamage`, `spendStamina`와 선택적 `skillId` 조건을 조합하고, `restoreStamina`, `restoreHealth`, `addUltimateProgress` 효과를 여러 개 지정할 수 있습니다. 새 조합은 캐릭터 JSON만으로 추가할 수 있으며 새로운 효과 종류가 필요할 때는 `src/abilities.ts`에 처리기를 확장합니다.
+
+`ultimate`는 선택 항목입니다. 설정하면 `moveId`는 `Space`이며 `landHits`, `takeDamage`, `spendStamina` 중 하나의 고유 조건과 목표값을 가집니다. 조건을 채우기 전에는 해당 `Space` 기술을 사용할 수 없고, 사용 직후 진행도가 0으로 초기화됩니다. `ultimate`를 생략하고 `Space` 기술만 등록하면 조건 잠금 없이 일반 스킬로 동작합니다.
 
 `atlas.json`은 Atlas Studio의 `schemaVersion: 2` 및 `schemaVersion: 3` 출력 형식을 지원합니다. `atlases.characters`, `atlases.effects`, `characterAnimations`, `effectAnimations`를 읽고 각 프레임의 `rect`, `trim`, `pivot`, `position`, `durationTicks`를 반영합니다. 캐릭터 시트와 효과 시트는 독립적으로 로드하고 재생합니다. `idle` 애니메이션은 선택 화면 미리보기에도 사용합니다. 현재 등록된 캐릭터는 `hans` 하나이며 양쪽 모두 선택할 수 있습니다.
 
-한스의 `character.json`처럼 `schemaVersion: 1`, `characterId`, `displayName`, `skills`를 사용하는 Atlas Studio 내보내기도 지원합니다. `skills[].skillId`에는 `A`, `S`, `D`, `Shift`, `Space`만 등록할 수 있습니다. 공격 항목에 `startupFrames`를 적으면 `ticksPerAnimationFrame`으로 곱해 60Hz 판정 틱으로 변환합니다. `startup`, `active`, `recovery`, `cooldown`은 60Hz 기준 정수 틱이며, `startup`과 `startupFrames`는 둘 중 하나만 사용합니다. `cooldown`은 공격 동작 종료 후부터 계산합니다. 한스의 `A`는 베기 공격이며, 내보낸 효과 프레임이 없으므로 별도 기술 효과는 그리지 않습니다. 이 형식에는 체력·이동·피해량 필드가 없으므로 현재 기본 전투 수치를 적용합니다. 이 수치를 캐릭터마다 지정하려면 위의 게임용 `character.json` 형식을 사용하세요. `portraitProvided: false`이거나 초상화 이미지 로딩에 실패하면 선택 화면에 큰 X를 표시합니다.
+한스의 `character.json`처럼 `schemaVersion: 1`, `characterId`, `displayName`, `skills`를 사용하는 Atlas Studio 내보내기도 지원합니다. `skills[].skillId`에는 `A`, `S`, `D`, `Shift`, `Space`만 등록할 수 있고 각 항목에 `staminaCost`가 필요합니다. 공격 항목에 `startupFrames`를 적으면 `ticksPerAnimationFrame`으로 곱해 60Hz 판정 틱으로 변환합니다. `startup`, `active`, `recovery`, `cooldown`은 60Hz 기준 정수 틱이며, `startup`과 `startupFrames`는 둘 중 하나만 사용합니다. `cooldown`은 공격 동작 종료 후부터 계산합니다. 한스의 `A`는 베기 공격이며 `Space`는 3회 적중 조건을 채워 사용하는 궁극기입니다. 내보낸 효과 프레임이 없는 기술은 별도 기술 효과를 그리지 않습니다. 이 형식에는 체력·이동·피해량 필드가 없으므로 현재 기본 전투 수치를 적용합니다. 이 수치를 캐릭터마다 지정하려면 위의 게임용 `character.json` 형식을 사용하세요. `portraitProvided: false`이거나 초상화 이미지 로딩에 실패하면 선택 화면에 큰 X를 표시합니다.
 
 등록된 폴더나 파일이 누락되거나 JSON 형식이 잘못되면 해당 경로와 원인을 선택 화면 및 브라우저 콘솔에 표시합니다. 다른 정상 캐릭터는 계속 선택할 수 있고, 이미지가 누락된 캐릭터는 임시 그래픽으로 전투합니다. 모든 등록 캐릭터를 사용할 수 없으면 내장 임시 캐릭터 두 명을 표시합니다.
 
@@ -114,6 +144,7 @@ ID는 영문, 숫자, `_`, `-`만 사용합니다. 아틀라스 시트가 여러
 - `src/characters.ts`: `index.json` 목록, 캐릭터 데이터 검증, 누락 파일 복구
 - `src/atlas.ts`: Atlas Studio v2/v3 다중 시트 로딩과 프레임 재생
 - `src/data.ts`: 전투 데이터 타입과 임시 캐릭터, 전투 상수
+- `src/abilities.ts`: 패시브 효과, 궁극기 조건, 기력 소모 규칙
 - `src/input.ts`: 키 입력
 - `src/game.ts`: 고정 60Hz 전투 로직과 더미 행동
 - `src/render.ts`: Canvas 전투 렌더링

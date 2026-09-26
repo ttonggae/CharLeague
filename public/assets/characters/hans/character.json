@@ -8,9 +8,27 @@
   "animationFps": 12,
   "gameTickRate": 60,
   "ticksPerAnimationFrame": 5,
+  "maxStamina": 100,
+  "staminaRegen": 0.2,
+  "passive": {
+    "id": "hans-blade-rhythm",
+    "name": "칼날의 리듬",
+    "description": "공격 적중 시 기력을 5 회복합니다.",
+    "trigger": "landHit",
+    "effects": [
+      { "type": "restoreStamina", "amount": 5 }
+    ]
+  },
+  "ultimate": {
+    "name": "결전의 일격",
+    "description": "공격을 3회 적중시키면 사용할 수 있습니다.",
+    "moveId": "Space",
+    "condition": { "type": "landHits", "target": 3 }
+  },
   "skills": [
     {
       "skillId": "A",
+      "staminaCost": 10,
       "startupFrames": 3,
       "cooldown": 6,
       "characterAnimations": [
@@ -20,6 +38,17 @@
           "loop": false
         }
       ],
+      "effectAnimations": []
+    },
+    {
+      "skillId": "Space",
+      "label": "결전의 일격",
+      "staminaCost": 60,
+      "startupFrames": 4,
+      "active": 8,
+      "recovery": 30,
+      "cooldown": 30,
+      "characterAnimations": [],
       "effectAnimations": []
     }
   ]

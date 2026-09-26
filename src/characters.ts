@@ -1,5 +1,6 @@
 import { hasAnimation, loadAtlas, type LoadedAtlas } from './atlas.ts';
-import { ANIMATION_FPS, ATTACK_IDS, TICK_RATE, dummyData, playerData, type Button, type CharacterData, type Direction, type MoveData } from './data.ts';
+import { isSkillId } from './abilities.ts';
+import { ANIMATION_FPS, ATTACK_IDS, TICK_RATE, dummyData, playerData, type Button, type CharacterData, type CombatEventType, type Direction, type PassiveData, type PassiveEffect, type UltimateData, type MoveData } from './data.ts';
 
 const ROOT = `${import.meta.env?.BASE_URL ?? '/'}assets/characters/`;
 const object = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -21,6 +22,41 @@ const assetPath = (value: unknown, field: string): string => {
   if (path.startsWith('/') || path.includes('..') || path.includes('\\') || /^[a-z]+:/i.test(path)) throw new Error(`${field}: 캐릭터 폴더 안의 상대 경로가 필요합니다`);
   return path;
 };
+
+function parsePassive(value: unknown): PassiveData {
+  if (!object(value)) throw new Error('passive: 객체가 필요합니다');
+  const triggers: CombatEventType[] = ['skillUse', 'landHit', 'takeDamage', 'spendStamina'];
+  const trigger = text(value.trigger, 'passive.trigger') as CombatEventType;
+  if (!triggers.includes(trigger)) throw new Error('passive.trigger: skillUse/landHit/takeDamage/spendStamina 중 하나여야 합니다');
+  if (value.skillId !== undefined && !isSkillId(value.skillId)) throw new Error('passive.skillId: A/S/D/Shift/Space 중 하나여야 합니다');
+  if (!Array.isArray(value.effects) || value.effects.length === 0) throw new Error('passive.effects: 한 개 이상의 효과가 필요합니다');
+  const effects: PassiveEffect[] = value.effects.map((effect, index) => {
+    if (!object(effect) || !['restoreStamina', 'restoreHealth', 'addUltimateProgress'].includes(String(effect.type)))
+      throw new Error(`passive.effects[${index}].type: 지원하지 않는 효과입니다`);
+    return { type: effect.type as PassiveEffect['type'], amount: number(effect.amount, `passive.effects[${index}].amount`) };
+  });
+  return {
+    id: text(value.id, 'passive.id'), name: text(value.name, 'passive.name'),
+    description: text(value.description, 'passive.description'), trigger,
+    skillId: value.skillId as Button | undefined, effects
+  };
+}
+
+function parseUltimate(value: unknown): UltimateData | undefined {
+  if (value === undefined || value === null) return undefined;
+  if (!object(value) || value.moveId !== 'Space' || !object(value.condition)) throw new Error('ultimate: moveId가 Space인 조건 객체가 필요합니다');
+  const conditionType = text(value.condition.type, 'ultimate.condition.type');
+  if (!['landHits', 'takeDamage', 'spendStamina'].includes(conditionType)) throw new Error('ultimate.condition.type: landHits/takeDamage/spendStamina 중 하나여야 합니다');
+  return {
+    name: text(value.name, 'ultimate.name'), description: text(value.description, 'ultimate.description'), moveId: 'Space',
+    condition: { type: conditionType as UltimateData['condition']['type'], target: number(value.condition.target, 'ultimate.condition.target', 1) }
+  };
+}
+
+function validateUltimate<T extends CharacterData>(data: T): T {
+  if (data.ultimate && !data.moves.some(move => move.id === data.ultimate!.moveId)) throw new Error('ultimate.moveId: Space 기술이 skills 또는 moves에 등록되어야 합니다');
+  return data;
+}
 
 export interface CharacterEntry {
   id: string;
@@ -52,6 +88,7 @@ export function parseCharacter(raw: unknown, id: string): CharacterData & { atla
       startup: number(value.startup, `${prefix}.startup`), active: number(value.active, `${prefix}.active`, 1),
       recovery: number(value.recovery, `${prefix}.recovery`),
       cooldown: value.cooldown === undefined ? 0 : ticks(value.cooldown, `${prefix}.cooldown`),
+      staminaCost: number(value.staminaCost, `${prefix}.staminaCost`),
       damage: number(value.damage, `${prefix}.damage`),
       chip: number(value.chip ?? 0, `${prefix}.chip`),
       knockback: { x: number(value.knockback.x, `${prefix}.knockback.x`), y: number(value.knockback.y, `${prefix}.knockback.y`, -100) },
@@ -63,16 +100,18 @@ export function parseCharacter(raw: unknown, id: string): CharacterData & { atla
       effectAnimation: typeof value.effectAnimation === 'string' ? value.effectAnimation : undefined
     };
   }).sort((a, b) => b.sequence.length - a.sequence.length || Number(b.direction !== 'any') - Number(a.direction !== 'any'));
-  return {
+  return validateUltimate({
     id, name: text(raw.name, 'name'), description: text(raw.description, 'description'), color,
     portraitProvided: raw.portraitProvided !== false,
     maxHp: number(raw.maxHp, 'maxHp', 1), walkSpeed: number(raw.walkSpeed, 'walkSpeed'),
     jumpSpeed: number(raw.jumpSpeed, 'jumpSpeed'),
+    maxStamina: number(raw.maxStamina, 'maxStamina', 1), staminaRegen: number(raw.staminaRegen, 'staminaRegen'),
+    passive: parsePassive(raw.passive), ultimate: parseUltimate(raw.ultimate),
     width: number(raw.width, 'width', 1), height: number(raw.height, 'height', 1),
     spriteScale: raw.spriteScale === undefined ? undefined : number(raw.spriteScale, 'spriteScale', 0.01),
     dummyMoveId: ATTACK_IDS.includes(raw.dummyMoveId as Button) ? raw.dummyMoveId as Button : undefined,
     atlas: assetPath(raw.atlas, 'atlas'), portrait: assetPath(raw.portrait, 'portrait'), moves
-  };
+  });
 }
 
 function parseStudioCharacter(raw: Record<string, unknown>, id: string): CharacterData & { atlas: string; portrait: string } {
@@ -80,7 +119,7 @@ function parseStudioCharacter(raw: Record<string, unknown>, id: string): Charact
   if (!Array.isArray(raw.skills)) throw new Error('skills: 배열이 필요합니다');
   const ticksPerAnimationFrame = raw.ticksPerAnimationFrame === undefined
     ? TICK_RATE / ANIMATION_FPS : ticks(raw.ticksPerAnimationFrame, 'ticksPerAnimationFrame', 1);
-  const links = new Map<string, { body?: string; effect?: string; label?: string; startup?: number; active?: number; recovery?: number; cooldown?: number }>();
+  const links = new Map<string, { body?: string; effect?: string; label?: string; startup?: number; active?: number; recovery?: number; cooldown?: number; staminaCost: number }>();
   raw.skills.forEach((skill, index) => {
     if (!object(skill)) throw new Error(`skills[${index}]: 객체가 필요합니다`);
     const skillId = text(skill.skillId, `skills[${index}].skillId`);
@@ -92,32 +131,35 @@ function parseStudioCharacter(raw: Record<string, unknown>, id: string): Charact
     links.set(skillId, {
       body: object(body) ? skillId : undefined,
       effect: object(effect) ? skillId : undefined,
-      label: object(body) && typeof body.name === 'string' && body.name.trim() ? body.name : undefined,
+      label: typeof skill.label === 'string' && skill.label.trim() ? skill.label : object(body) && typeof body.name === 'string' && body.name.trim() ? body.name : undefined,
       startup: skill.startupFrames !== undefined
         ? ticks(skill.startupFrames, `skills[${index}].startupFrames`) * ticksPerAnimationFrame
         : skill.startup === undefined ? undefined : ticks(skill.startup, `skills[${index}].startup`),
       active: skill.active === undefined ? undefined : ticks(skill.active, `skills[${index}].active`, 1),
       recovery: skill.recovery === undefined ? undefined : ticks(skill.recovery, `skills[${index}].recovery`),
-      cooldown: skill.cooldown === undefined ? undefined : ticks(skill.cooldown, `skills[${index}].cooldown`)
+      cooldown: skill.cooldown === undefined ? undefined : ticks(skill.cooldown, `skills[${index}].cooldown`),
+      staminaCost: number(skill.staminaCost, `skills[${index}].staminaCost`)
     });
   });
   const moves = playerData.moves.filter(move => links.has(move.id)).map(move => {
     const link = links.get(move.id)!;
     return { ...move, label: link.label ?? move.label, bodyAnimation: link.body, effectAnimation: link.effect,
       startup: link.startup ?? move.startup, active: link.active ?? move.active,
-      recovery: link.recovery ?? move.recovery, cooldown: link.cooldown ?? 0 };
+      recovery: link.recovery ?? move.recovery, cooldown: link.cooldown ?? 0, staminaCost: link.staminaCost };
   });
-  return {
+  return validateUltimate({
     ...playerData,
     id,
     name: text(raw.displayName, 'displayName'),
     description: typeof raw.description === 'string' ? raw.description : 'Atlas Studio 캐릭터',
     portraitProvided: raw.portraitProvided !== false,
+    maxStamina: number(raw.maxStamina, 'maxStamina', 1), staminaRegen: number(raw.staminaRegen, 'staminaRegen'),
+    passive: parsePassive(raw.passive), ultimate: parseUltimate(raw.ultimate),
     dummyMoveId: moves[0]?.id,
     atlas: assetPath(raw.atlas, 'atlas'),
     portrait: assetPath(raw.portrait, 'portrait'),
     moves
-  };
+  });
 }
 
 function error(entry: CharacterEntry, message: string): void {

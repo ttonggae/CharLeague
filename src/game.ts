@@ -1,12 +1,13 @@
 import { COMBO_WINDOW, INPUT_BUFFER, STAGE, TICK_RATE, dummyData, playerData, type Button, type CharacterData, type FighterState, type MoveData } from './data.ts';
 import type { AttackPress, InputFrame } from './input.ts';
+import { advanceUltimate, applyPassive, canUseMove, spendForMove } from './abilities.ts';
 
 export type DummyMode = 'attack' | 'guard' | 'idle';
 export interface ActiveAttack { move: MoveData; tick: number; hit: boolean }
 export interface Fighter {
   data: CharacterData;
   x: number; y: number; vx: number; vy: number; facing: -1 | 1;
-  hp: number; state: FighterState; guarding: boolean;
+  hp: number; stamina: number; ultimateProgress: number; state: FighterState; guarding: boolean;
   hurtTicks: number; attackCooldownUntilTick: number; attack: ActiveAttack | null;
 }
 interface BufferedPress extends AttackPress { tick: number; facing: -1 | 1 }
@@ -18,7 +19,7 @@ interface ControlMemory {
 const controlMemory = (): ControlMemory => ({ pending: [], history: [] });
 
 export interface FighterSnapshot {
-  x: number; y: number; vx: number; vy: number; facing: -1 | 1; hp: number;
+  x: number; y: number; vx: number; vy: number; facing: -1 | 1; hp: number; stamina: number; ultimateProgress: number;
   state: FighterState; guarding: boolean; hurtTicks: number;
   attackCooldownUntilTick: number;
   attack: { moveId: string; tick: number; hit: boolean } | null;
@@ -31,7 +32,7 @@ export interface GameSnapshot {
 }
 
 function fighter(data: CharacterData, x: number, facing: -1 | 1): Fighter {
-  return { data, x, y: STAGE.floor, vx: 0, vy: 0, facing, hp: data.maxHp, state: 'idle', guarding: false, hurtTicks: 0, attackCooldownUntilTick: 0, attack: null };
+  return { data, x, y: STAGE.floor, vx: 0, vy: 0, facing, hp: data.maxHp, stamina: data.maxStamina, ultimateProgress: 0, state: 'idle', guarding: false, hurtTicks: 0, attackCooldownUntilTick: 0, attack: null };
 }
 function clamp(value: number, min: number, max: number): number { return Math.max(min, Math.min(max, value)); }
 
@@ -148,18 +149,22 @@ export class Game {
 
   private tryBufferedAttack(f: Fighter, control: ControlMemory): void {
     if (f.hp <= 0 || f.hurtTicks > 0 || control.pending.length === 0) return;
-    const press = control.pending[0];
-    const move = this.chooseMove(f, control, press);
-    const current = f.attack;
-    const canCancel = current && !current.move.cooldown && current.move.sequence.length === 1 && current.move.sequence[0] === 'A'
-      && current.tick >= current.move.startup + current.move.active
-      && (press.button === 'A' || (move?.sequence.length ?? 0) > 1);
-    if ((current && !canCancel) || this.tick < f.attackCooldownUntilTick) return;
-    if (move) {
-      this.startAttack(f, move);
-      this.say(move.label);
+    for (let index = 0; index < control.pending.length; index++) {
+      const press = control.pending[index];
+      const move = this.chooseMove(f, control, press);
+      if (!move) { control.pending.splice(index--, 1); continue; }
+      if (!canUseMove(f, move)) continue;
+      const current = f.attack;
+      const canCancel = current && !current.move.cooldown && current.move.sequence.length === 1 && current.move.sequence[0] === 'A'
+        && current.tick >= current.move.startup + current.move.active
+        && (press.button === 'A' || move.sequence.length > 1);
+      if ((current && !canCancel) || this.tick < f.attackCooldownUntilTick) return;
+      if (this.startAttack(f, move)) {
+        this.say(move.label);
+        control.pending.splice(index, 1);
+      }
+      return;
     }
-    control.pending.shift();
   }
 
   private chooseMove(f: Fighter, control: ControlMemory, press: BufferedPress): MoveData | undefined {
@@ -177,10 +182,13 @@ export class Game {
     });
   }
 
-  private startAttack(f: Fighter, move: MoveData): void {
+  private startAttack(f: Fighter, move: MoveData): boolean {
+    if (!canUseMove(f, move)) return false;
+    spendForMove(f, move);
     f.attack = { move, tick: 0, hit: false };
     f.guarding = false;
     f.vx = 0;
+    return true;
   }
 
   private updateDummyAI(): void {
@@ -189,12 +197,13 @@ export class Game {
     if (Math.abs(this.player.x - this.dummy.x) <= 134 && Math.abs(this.player.y - this.dummy.y) < 80) {
       const move = this.dummy.data.moves.find(candidate => candidate.id === this.dummy.data.dummyMoveId) ?? this.dummy.data.moves[0];
       if (!move) return;
-      this.startAttack(this.dummy, move);
-      this.dummyCooldown = 115;
+      if (this.startAttack(this.dummy, move)) this.dummyCooldown = 115;
+      else this.dummyCooldown = 15;
     }
   }
 
   private advanceFighter(f: Fighter): void {
+    if (f.hp > 0 && f.stamina < f.data.maxStamina) f.stamina = Math.min(f.data.maxStamina, Math.round((f.stamina + f.data.staminaRegen) * 1000) / 1000);
     if (f.hurtTicks > 0) {
       f.hurtTicks--;
       f.vx *= 0.88;
@@ -237,13 +246,20 @@ export class Game {
     if (forwardDistance < 0 || forwardDistance > move.reach + defender.data.width / 2 || verticalDistance > (move.height + defender.data.height) / 2) return;
     attack.hit = true;
     const blocked = defender.guarding && defender.facing === -attacker.facing && defender.y >= STAGE.floor;
-    defender.hp = Math.max(0, defender.hp - (blocked ? move.chip : move.damage));
+    const damage = blocked ? move.chip : move.damage;
+    defender.hp = Math.max(0, defender.hp - damage);
     defender.vx = attacker.facing * move.knockback.x * (blocked ? 0.28 : 1);
     if (!blocked) {
       defender.vy = move.knockback.y;
       defender.attack = null;
       defender.hurtTicks = move.hitstun;
       defender.guarding = false;
+    }
+    applyPassive(defender, { type: 'takeDamage', move, value: damage });
+    advanceUltimate(defender, { type: 'takeDamage', move, value: damage });
+    if (!blocked) {
+      applyPassive(attacker, { type: 'landHit', move, value: damage });
+      advanceUltimate(attacker, { type: 'landHit', move, value: damage });
     }
     this.say(blocked ? 'BLOCK' : `${move.label} · ${move.damage}`);
     if (defender.hp === 0) {
@@ -269,7 +285,7 @@ export class Game {
 
   snapshot(): GameSnapshot {
     const save = (f: Fighter): FighterSnapshot => ({
-      x: f.x, y: f.y, vx: f.vx, vy: f.vy, facing: f.facing, hp: f.hp,
+      x: f.x, y: f.y, vx: f.vx, vy: f.vy, facing: f.facing, hp: f.hp, stamina: f.stamina, ultimateProgress: f.ultimateProgress,
       state: f.state, guarding: f.guarding,
       hurtTicks: f.hurtTicks,
       attackCooldownUntilTick: f.attackCooldownUntilTick,
@@ -288,7 +304,7 @@ export class Game {
       const move = saved.attack && data.moves.find(candidate => candidate.id === saved.attack!.moveId);
       if (saved.attack && !move) throw new Error(`알 수 없는 기술 ID: ${saved.attack.moveId}`);
       return { data, x: saved.x, y: saved.y, vx: saved.vx, vy: saved.vy,
-        facing: saved.facing, hp: saved.hp, state: saved.state,
+        facing: saved.facing, hp: saved.hp, stamina: saved.stamina, ultimateProgress: saved.ultimateProgress, state: saved.state,
         guarding: saved.guarding,
         hurtTicks: saved.hurtTicks,
         attackCooldownUntilTick: saved.attackCooldownUntilTick,

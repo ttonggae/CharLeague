@@ -51,6 +51,8 @@ test('two lockstep games exchange frame inputs and repair only after a hash mism
   assert.equal(snapshots, 1);
   assert.deepEqual(guestGame.snapshot(), hostGame.snapshot());
   assert.equal(parseSnapshotPacket({ kind: 'snapshot', frame: host.frame, state: { ...hostGame.snapshot(), player: { ...hostGame.snapshot().player, hp: 999 } } }, hostGame), null);
+  assert.equal(parseSnapshotPacket({ kind: 'snapshot', frame: host.frame, state: { ...hostGame.snapshot(), player: { ...hostGame.snapshot().player, stamina: 999 } } }, hostGame), null);
+  assert.equal(parseSnapshotPacket({ kind: 'snapshot', frame: host.frame, state: { ...hostGame.snapshot(), player: { ...hostGame.snapshot().player, ultimateProgress: 999 } } }, hostGame), null);
   assert.equal(parseSnapshotPacket({ kind: 'snapshot', frame: host.frame, state: { ...hostGame.snapshot(), roundWins: [3, 0] } }, hostGame), null);
 });
 

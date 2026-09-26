@@ -90,7 +90,7 @@ function renderChoice(side: 0 | 1): void {
     const info = document.createElement('span'); info.className = 'character-card-info';
     const name = document.createElement('strong'); name.textContent = label(entry); info.append(name);
     const stats = document.createElement('small');
-    stats.textContent = entry.data ? `HP ${entry.data.maxHp}  ·  이동 ${entry.data.walkSpeed}` : 'character.json 오류';
+    stats.textContent = entry.data ? `HP ${entry.data.maxHp} · 기력 ${entry.data.maxStamina} · 이동 ${entry.data.walkSpeed}` : 'character.json 오류';
     info.append(stats); button.append(info);
     if (chosen[side] === entry) {
       const marker = document.createElement('span'); marker.className = 'selection-marker'; marker.textContent = '선택됨';
@@ -110,12 +110,22 @@ function renderChoice(side: 0 | 1): void {
   required<HTMLElement>(`#${prefix}-name`).textContent = entry ? label(entry) : mode === 'online' && side === 1 ? '상대 선택 대기' : '선택 대기';
   required<HTMLElement>(`#${prefix}-description`).textContent = entry?.data?.description ?? '';
   required<HTMLElement>(`#${prefix}-stats`).textContent = entry?.data
-    ? `체력 ${entry.data.maxHp}  ·  이동 ${entry.data.walkSpeed}  ·  점프 ${entry.data.jumpSpeed}` : '';
+    ? `체력 ${entry.data.maxHp} · 기력 ${entry.data.maxStamina} · 이동 ${entry.data.walkSpeed} · 점프 ${entry.data.jumpSpeed}` : '';
   if (side === 0) {
     const available = required<HTMLElement>('#available-moves'); available.replaceChildren();
     const directions = { any: '', forward: '전방 + ', back: '후방 + ', up: '↑ + ', down: '↓ + ' };
     for (const move of entry?.data?.moves ?? []) {
-      const line = document.createElement('p'); line.textContent = `${directions[move.direction]}${move.sequence.join(' → ')} · ${move.label}`; available.append(line);
+      const ultimate = entry?.data?.ultimate?.moveId === move.id ? '궁극기 · ' : '';
+      const line = document.createElement('p'); line.textContent = `${directions[move.direction]}${move.sequence.join(' → ')} · ${ultimate}${move.label} · 기력 ${move.staminaCost}`; available.append(line);
+    }
+    if (entry?.data) {
+      const passive = document.createElement('p'); passive.textContent = `패시브 · ${entry.data.passive.name}: ${entry.data.passive.description}`; available.prepend(passive);
+      if (entry.data.ultimate) {
+        const conditionNames = { landHits: '공격 적중', takeDamage: '피해 받기', spendStamina: '기력 소모' };
+        const ultimate = document.createElement('p'); ultimate.textContent = `궁극기 조건 · ${conditionNames[entry.data.ultimate.condition.type]} ${entry.data.ultimate.condition.target}`; available.append(ultimate);
+      } else if (entry.data.moves.some(move => move.id === 'Space')) {
+        const ordinarySpace = document.createElement('p'); ordinarySpace.textContent = 'Space는 일반 스킬'; available.append(ordinarySpace);
+      }
     }
     if (!available.childElementCount) { const line = document.createElement('p'); line.textContent = '등록된 공격 기술 없음'; available.append(line); }
   }
