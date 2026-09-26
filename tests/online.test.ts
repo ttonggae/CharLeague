@@ -4,6 +4,7 @@ import { readFile } from 'node:fs/promises';
 import { parseCharacter } from '../src/characters.ts';
 import { Game, emptyInput } from '../src/game.ts';
 import { OnlineMatch, packInput, unpackInput, validInputBits, parseInputPacket, parseSnapshotPacket, tokenFromFragment } from '../src/online.ts';
+import { parseControl } from '../src/network.ts';
 import type { InputFrame } from '../src/input.ts';
 
 const hansRaw = JSON.parse(await readFile(new URL('../public/assets/characters/hans/character.json', import.meta.url), 'utf8'));
@@ -22,10 +23,32 @@ test('packed input preserves movement and all five skill inputs', () => {
   assert.deepEqual(unpackInput(packInput(input)), input);
   assert.equal(validInputBits(2 ** 29), true);
   assert.equal(validInputBits(2 ** 34), false);
-  assert.equal(parseInputPacket({ kind: 'input', frame: -1, bits: 0 }), null);
-  assert.notEqual(parseInputPacket({ kind: 'input', frame: 4, bits: 2 ** 29 }), null);
+  assert.equal(parseInputPacket({ kind: 'input', epoch: 0, frame: -1, bits: 0 }), null);
+  assert.equal(parseInputPacket({ kind: 'input', frame: 4, bits: 0 }), null);
+  assert.notEqual(parseInputPacket({ kind: 'input', epoch: 0, frame: 4, bits: 2 ** 29 }), null);
   assert.equal(tokenFromFragment('#duel=' + 'a'.repeat(48)), 'a'.repeat(48));
   assert.equal(tokenFromFragment('#duel=short'), null);
+});
+
+test('pause controls validate ranges and delayed pre-pause inputs cannot enter a resumed match', () => {
+  assert.deepEqual(parseControl({ kind: 'pause', id: 4, frame: 12 }), { kind: 'pause', id: 4, frame: 12 });
+  assert.deepEqual(parseControl({ kind: 'pause-request' }), { kind: 'pause-request' });
+  assert.deepEqual(parseControl({ kind: 'resume-ready', id: 4, frame: 12 }), { kind: 'resume-ready', id: 4, frame: 12 });
+  assert.deepEqual(parseControl({ kind: 'resume-go', id: 4, delayMs: 3_000 }), { kind: 'resume-go', id: 4, delayMs: 3_000 });
+  assert.equal(parseControl({ kind: 'resume-go', id: 4, delayMs: 500 }), null);
+
+  const noop = { sendInput() {}, sendHash() {}, sendSnapshot() {} };
+  const host = new OnlineMatch(new Game(hans, hans, 17), 0, noop);
+  const guest = new OnlineMatch(new Game(hans, hans, 17), 1, noop);
+  const resumed = host.createResumeState(4);
+  assert.equal(guest.receiveResumeState(resumed), true);
+  guest.receiveInput({ kind: 'input', epoch: 0, frame: 4, bits: 0 });
+  guest.capture(emptyInput());
+  guest.advance(4);
+  assert.equal(guest.frame, 3, 'only the three seeded delay frames advance when an old-epoch packet arrives');
+  guest.receiveInput({ kind: 'input', epoch: 4, frame: 4, bits: 0 });
+  guest.advance(1);
+  assert.equal(guest.frame, 4);
 });
 
 test('two lockstep games exchange frame inputs and repair only after a hash mismatch', () => {

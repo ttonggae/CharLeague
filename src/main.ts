@@ -37,10 +37,15 @@ const retryButton = required<HTMLButtonElement>('#online-retry');
 const countdownText = required<HTMLElement>('#online-countdown');
 const disconnectOverlay = required<HTMLElement>('#online-disconnect');
 const disconnectReason = required<HTMLElement>('#disconnect-reason');
+const pauseOverlay = required<HTMLElement>('#online-pause');
+const pauseTitle = required<HTMLElement>('#pause-title');
+const pauseDetail = required<HTMLElement>('#pause-detail');
+const resumeButton = required<HTMLButtonElement>('#online-resume');
 const previewCanvases = [required<HTMLCanvasElement>('#player-preview'), required<HTMLCanvasElement>('#dummy-preview')];
 
 type Mode = 'menu' | 'local' | 'online';
 interface Countdown { p1: string; p2: string; seed: number; until: number }
+type PausePhase = 'running' | 'paused' | 'syncing' | 'countdown';
 let mode: Mode = 'menu';
 let entries: CharacterEntry[] = [];
 let version = '';
@@ -61,6 +66,11 @@ let remoteReady: { characterId: string; version: string } | null = null;
 let countdown: Countdown | null = null;
 let earlyInputs: InputPacket[] = [];
 let previewTick = 0;
+let pausePhase: PausePhase = 'running';
+let pauseId = 0;
+let resumeUntil = 0;
+let resumeSyncStartedAt = 0;
+let lastHostInputAt = performance.now();
 
 function resizeGameCanvas(): void {
   if (arenaScreen.hidden) return;
@@ -175,7 +185,8 @@ function showArena(): void {
 }
 function hideArena(): void {
   game = null; renderer = null; match = null;
-  disconnectOverlay.hidden = true; arenaScreen.hidden = true;
+  disconnectOverlay.hidden = true; pauseOverlay.hidden = true; arenaScreen.hidden = true;
+  pausePhase = 'running'; resumeUntil = 0; resumeSyncStartedAt = 0;
   document.body.classList.remove('playing');
 }
 async function stopConnection(): Promise<void> {
@@ -213,6 +224,7 @@ function setConnectionState(state: ConnectionState, detail = ''): void {
   if (state === 'disconnected' || state === 'error') {
     countdown = null; localReady = false; remoteReady = null;
     chosen[1] = null; renderChoice(1);
+    pauseOverlay.hidden = true; pausePhase = 'paused';
     if (game && mode === 'online') { disconnectReason.textContent = connectionStatus.textContent; disconnectOverlay.hidden = false; }
   }
   startButton.textContent = localReady ? '준비 취소' : '준비';
@@ -243,6 +255,41 @@ function beginCountdown(packet: Extract<ControlPacket, { kind: 'start' }>): void
   countdownText.hidden = false; countdownText.textContent = '3초 후 시작';
   renderChoice(0);
 }
+
+function showOnlinePause(title: string, detail: string, canResume = false): void {
+  if (!game || mode !== 'online') return;
+  pauseTitle.textContent = title; pauseDetail.textContent = detail;
+  resumeButton.hidden = !canResume; pauseOverlay.hidden = false;
+}
+
+function pauseHost(detail: string): void {
+  if (mode !== 'online' || onlineRole !== 'host' || !match || !connection?.connected) return;
+  if (pausePhase === 'running' || pausePhase === 'countdown') pauseId = pauseId >= 1_000_000_000 ? 1 : pauseId + 1;
+  pausePhase = 'paused'; resumeUntil = 0; resumeSyncStartedAt = 0; input.read();
+  connection.sendControl({ kind: 'pause', id: pauseId, frame: match.frame });
+  showOnlinePause('온라인 대전 일시정지', detail, !document.hidden);
+}
+
+function pauseGuest(detail: string): void {
+  if (mode !== 'online' || onlineRole !== 'guest' || !match) return;
+  pausePhase = 'paused'; resumeUntil = 0; resumeSyncStartedAt = 0; input.read();
+  showOnlinePause('온라인 대전 일시정지', detail);
+}
+
+function beginResumeCountdown(id: number): void {
+  if (!match || id !== pauseId) return;
+  pausePhase = 'countdown'; resumeUntil = performance.now() + 3_000; resumeSyncStartedAt = 0; input.read();
+  showOnlinePause('곧 다시 시작합니다', '3초 후 시작');
+}
+
+function requestOnlineResume(): void {
+  if (onlineRole !== 'host' || pausePhase !== 'paused' || !match || !connection?.connected) return;
+  pausePhase = 'syncing'; resumeSyncStartedAt = performance.now();
+  showOnlinePause('상태 동기화 중', '상대의 재개 준비를 기다리는 중');
+  connection.sendControl({ kind: 'pause', id: pauseId, frame: match.frame });
+  connection.sendResumeState(match.createResumeState(pauseId));
+}
+
 function receiveControl(packet: ControlPacket): void {
   if (mode !== 'online') return;
   if (packet.kind === 'select' || packet.kind === 'ready') {
@@ -262,6 +309,17 @@ function receiveControl(packet: ControlPacket): void {
       setConnectionState('error', '시작 정보가 캐릭터 선택과 다릅니다'); return;
     }
     beginCountdown(packet);
+  } else if (packet.kind === 'pause' && onlineRole === 'guest' && match && packet.id >= pauseId) {
+    pauseId = packet.id;
+    pauseGuest('호스트가 화면으로 돌아올 때까지 기다리는 중');
+  } else if (packet.kind === 'pause-request' && onlineRole === 'host' && match) {
+    pauseHost('백그라운드 전환이 감지되었습니다');
+  } else if (packet.kind === 'resume-ready' && onlineRole === 'host' && match
+    && pausePhase === 'syncing' && packet.id === pauseId && packet.frame === match.frame) {
+    connection?.sendControl({ kind: 'resume-go', id: pauseId, delayMs: 3_000 });
+    beginResumeCountdown(pauseId);
+  } else if (packet.kind === 'resume-go' && onlineRole === 'guest' && match && packet.id === pauseId) {
+    beginResumeCountdown(packet.id);
   }
 }
 
@@ -278,6 +336,7 @@ function startOnlineFight(config: Countdown): void {
   match.onResync = () => { status.textContent = '상태 동기화 복구'; };
   for (const packet of earlyInputs) match.receiveInput(packet);
   earlyInputs = [];
+  pausePhase = 'running'; pauseId = 0; resumeUntil = 0; resumeSyncStartedAt = 0; lastHostInputAt = performance.now(); pauseOverlay.hidden = true;
   countdown = null; countdownText.hidden = true; showArena();
 }
 
@@ -299,6 +358,7 @@ async function enterOnline(role: OnlineRole, token: string): Promise<void> {
   if (role === 'host') sessionStorage.setItem('grim-host-token', token);
   else sessionStorage.removeItem('grim-host-token');
   localReady = false; remoteReady = null; pingMs = null;
+  pausePhase = 'running'; pauseId = 0; resumeUntil = 0; resumeSyncStartedAt = 0; lastHostInputAt = performance.now();
   chosen = [null, null];
   location.hash = `duel=${token}`;
   required<HTMLElement>('#selection-heading').textContent = role === 'host' ? '온라인 대전 · P1' : '온라인 대전 · P2';
@@ -324,11 +384,19 @@ async function enterOnline(role: OnlineRole, token: string): Promise<void> {
       control: packet => { if (generation === connectionGeneration) receiveControl(packet); },
       input: packet => {
         if (generation !== connectionGeneration) return;
+        if (onlineRole === 'guest') lastHostInputAt = performance.now();
         if (match) match.receiveInput(packet);
         else if (countdown && earlyInputs.length < 300) earlyInputs.push(packet);
       },
       hash: packet => { if (generation === connectionGeneration) match?.receiveHash(packet); },
       snapshot: packet => { if (generation === connectionGeneration) match?.receiveSnapshot(packet); },
+      resumeState: packet => {
+        if (generation !== connectionGeneration || onlineRole !== 'guest' || !match) return;
+        if (match.receiveResumeState(packet)) {
+          pauseId = packet.pauseId; pauseGuest('재개를 위한 상태 동기화 중');
+          connection?.sendControl({ kind: 'resume-ready', id: packet.pauseId, frame: packet.frame });
+        }
+      },
       ping: ms => { if (generation === connectionGeneration) { pingMs = ms; onlinePing.textContent = ms === null ? '핑 --' : `핑 ${ms}ms`; } }
     });
   } catch (error) { setConnectionState('error', error instanceof Error ? error.message : String(error)); }
@@ -351,6 +419,11 @@ required<HTMLButtonElement>('#copy-link').addEventListener('click', () => {
 retryButton.addEventListener('click', () => { void enterOnline(onlineRole, onlineToken); });
 required<HTMLButtonElement>('#disconnect-retry').addEventListener('click', () => { void enterOnline(onlineRole, onlineToken); });
 required<HTMLButtonElement>('#disconnect-menu').addEventListener('click', enterMenu);
+resumeButton.addEventListener('click', requestOnlineResume);
+document.addEventListener('visibilitychange', () => {
+  if (mode !== 'online' || onlineRole !== 'host' || !match) return;
+  pauseHost(document.hidden ? '호스트 창이 백그라운드로 전환되었습니다' : '재개 버튼을 눌러 계속하세요');
+});
 startButton.addEventListener('click', () => {
   if (mode === 'online') { setLocalReady(!localReady); return; }
   const player = chosen[0], dummy = chosen[1]; if (!player?.data || !dummy?.data) return;
@@ -387,15 +460,33 @@ const maxTicksPerFrame = 4;
 let previous = performance.now();
 let accumulator = 0;
 function frame(now: number) {
-  accumulator = Math.min(accumulator + Math.max(0, now - previous), timestep * maxTicksPerFrame);
+  const elapsed = Math.max(0, now - previous);
+  if (mode === 'online' && onlineRole === 'host' && match && elapsed > 750) pauseHost('백그라운드 전환이 감지되었습니다. 재개 버튼을 눌러 계속하세요');
+  if (mode === 'online' && onlineRole === 'guest' && match && pausePhase === 'running' && now - lastHostInputAt > 750) {
+    pauseGuest('호스트 신호가 멈췄습니다. 호스트의 재개를 기다리는 중');
+    connection?.sendControl({ kind: 'pause-request' });
+  }
+  if (pausePhase === 'countdown') {
+    const remaining = Math.max(0, Math.ceil((resumeUntil - now) / 1000));
+    pauseDetail.textContent = remaining ? `${remaining}초 후 시작` : '대전 재개';
+    if (!remaining) {
+      pausePhase = 'running'; resumeUntil = 0; pauseOverlay.hidden = true;
+      lastHostInputAt = now; accumulator = 0; input.read();
+    }
+  }
+  if (pausePhase === 'syncing' && onlineRole === 'host' && now - resumeSyncStartedAt > 2_000) {
+    pausePhase = 'paused'; resumeSyncStartedAt = 0;
+    showOnlinePause('상태 동기화 응답 없음', '재개 버튼을 눌러 다시 시도하세요', true);
+  }
+  accumulator = Math.min(accumulator + elapsed, timestep * maxTicksPerFrame);
   previous = now;
   while (accumulator >= timestep) {
     const snapshot = input.read();
     if (game && mode === 'local') game.update(snapshot);
-    else if (match && connectionState === 'connected') match.capture(snapshot);
+    else if (match && connectionState === 'connected' && pausePhase === 'running') match.capture(snapshot);
     previewTick++; accumulator -= timestep;
   }
-  if (match && connectionState === 'connected') {
+  if (match && connectionState === 'connected' && pausePhase === 'running') {
     match.advance(maxTicksPerFrame);
     if (game?.seriesWinner) finishOnlineSeries();
   }

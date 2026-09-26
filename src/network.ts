@@ -1,5 +1,5 @@
 import { joinRoom, type DataPayload, type MessageAction } from 'trystero';
-import { parseHashPacket, parseInputPacket, type HashPacket, type InputPacket, type SnapshotPacket } from './online.ts';
+import { parseHashPacket, parseInputPacket, type HashPacket, type InputPacket, type ResumeStatePacket, type SnapshotPacket } from './online.ts';
 
 export type OnlineRole = 'host' | 'guest';
 export type ConnectionState = 'connecting' | 'waiting' | 'connected' | 'disconnected' | 'error';
@@ -8,6 +8,10 @@ export type ControlPacket =
   | { kind: 'ready'; characterId: string; version: string }
   | { kind: 'unready' }
   | { kind: 'start'; p1: string; p2: string; version: string; seed: number }
+  | { kind: 'pause'; id: number; frame: number }
+  | { kind: 'pause-request' }
+  | { kind: 'resume-ready'; id: number; frame: number }
+  | { kind: 'resume-go'; id: number; delayMs: number }
   | { kind: 'abort'; reason: string };
 
 const appId = 'kr.grimwar.canvasduel.p2p.v1';
@@ -17,6 +21,7 @@ const version = (value: unknown): value is string => typeof value === 'string' &
 export function parseControl(raw: unknown): ControlPacket | null {
   if (!object(raw)) return null;
   if (raw.kind === 'unready') return { kind: 'unready' };
+  if (raw.kind === 'pause-request') return { kind: 'pause-request' };
   if (raw.kind === 'select' && characterId(raw.characterId) && version(raw.version))
     return { kind: 'select', characterId: raw.characterId, version: raw.version };
   if (raw.kind === 'ready' && characterId(raw.characterId) && version(raw.version))
@@ -24,6 +29,15 @@ export function parseControl(raw: unknown): ControlPacket | null {
   if (raw.kind === 'start' && characterId(raw.p1) && characterId(raw.p2) && version(raw.version)
     && Number.isInteger(raw.seed) && (raw.seed as number) >= 0 && (raw.seed as number) <= 0xffffffff)
     return { kind: 'start', p1: raw.p1, p2: raw.p2, version: raw.version, seed: raw.seed as number };
+  if (raw.kind === 'pause' && Number.isInteger(raw.id) && (raw.id as number) >= 1 && (raw.id as number) <= 1_000_000_000
+    && Number.isInteger(raw.frame) && (raw.frame as number) >= 0 && (raw.frame as number) <= 1_000_000_000)
+    return { kind: 'pause', id: raw.id as number, frame: raw.frame as number };
+  if (raw.kind === 'resume-ready' && Number.isInteger(raw.id) && (raw.id as number) >= 1 && (raw.id as number) <= 1_000_000_000
+    && Number.isInteger(raw.frame) && (raw.frame as number) >= 0 && (raw.frame as number) <= 1_000_000_000)
+    return { kind: 'resume-ready', id: raw.id as number, frame: raw.frame as number };
+  if (raw.kind === 'resume-go' && Number.isInteger(raw.id) && (raw.id as number) >= 1 && (raw.id as number) <= 1_000_000_000
+    && raw.delayMs === 3_000)
+    return { kind: 'resume-go', id: raw.id as number, delayMs: 3_000 };
   if (raw.kind === 'abort' && typeof raw.reason === 'string' && raw.reason.length <= 120)
     return { kind: 'abort', reason: raw.reason };
   return null;
@@ -35,6 +49,7 @@ export interface NetworkCallbacks {
   input(packet: InputPacket): void;
   hash(packet: HashPacket): void;
   snapshot(packet: SnapshotPacket): void;
+  resumeState(packet: ResumeStatePacket): void;
   ping(ms: number | null): void;
 }
 
@@ -47,6 +62,7 @@ export class P2PConnection {
   private inputAction: MessageAction;
   private hashAction: MessageAction;
   private snapshotAction: MessageAction;
+  private resumeStateAction: MessageAction;
   private peerId: string | null = null;
   private reservedPeer: string | null = null;
   private pingTimer: ReturnType<typeof setInterval> | null = null;
@@ -76,6 +92,7 @@ export class P2PConnection {
     this.inputAction = this.room.makeAction('grim-input');
     this.hashAction = this.room.makeAction('grim-hash');
     this.snapshotAction = this.room.makeAction('grim-snapshot');
+    this.resumeStateAction = this.room.makeAction('grim-resume-state');
     this.controlAction.onMessage = (raw, context) => {
       if (!this.fromPeer(context.peerId)) return;
       const packet = parseControl(raw);
@@ -95,6 +112,10 @@ export class P2PConnection {
       if (!this.fromPeer(context.peerId)) return;
       // Full value validation uses the current game's character definitions in OnlineMatch.
       if (object(raw) && raw.kind === 'snapshot') callbacks.snapshot(raw as unknown as SnapshotPacket);
+    };
+    this.resumeStateAction.onMessage = (raw, context) => {
+      if (!this.fromPeer(context.peerId)) return;
+      if (object(raw) && raw.kind === 'resume-state') callbacks.resumeState(raw as unknown as ResumeStatePacket);
     };
     this.room.onPeerJoin = peerId => {
       if (this.disposed || (this.peerId && this.peerId !== peerId)) return;
@@ -128,6 +149,7 @@ export class P2PConnection {
   sendInput(packet: InputPacket): void { this.send(this.inputAction, packet as unknown as DataPayload); }
   sendHash(packet: HashPacket): void { this.send(this.hashAction, packet as unknown as DataPayload); }
   sendSnapshot(packet: SnapshotPacket): void { this.send(this.snapshotAction, packet as unknown as DataPayload); }
+  sendResumeState(packet: ResumeStatePacket): void { this.send(this.resumeStateAction, packet as unknown as DataPayload); }
 
   private async measurePing(): Promise<void> {
     if (!this.peerId || this.disposed) return;
@@ -145,6 +167,7 @@ export class P2PConnection {
     this.peerId = null; this.reservedPeer = null;
     this.controlAction.onMessage = null; this.inputAction.onMessage = null;
     this.hashAction.onMessage = null; this.snapshotAction.onMessage = null;
+    this.resumeStateAction.onMessage = null;
     this.room.onPeerJoin = null; this.room.onPeerLeave = null;
     await this.room.leave();
   }

@@ -27,6 +27,10 @@ h1 { margin: 0; font-size: clamp(36px, 5vw, 58px); line-height: 1.1; font-weight
 .online-lobby p { margin: 0; font-weight: 800; }
 .disconnect-overlay { position: absolute; inset: 0; z-index: 3; display: grid; align-content: center; justify-items: center; gap: 18px; background: #ffffffeb; text-align: center; font-size: 26px; }
 .disconnect-overlay > div { display: flex; gap: 10px; }
+.pause-overlay { position: absolute; inset: 0; z-index: 2; display: grid; align-content: center; justify-items: center; gap: 12px; background: #ffffffd9; text-align: center; }
+.pause-overlay strong { font-size: 28px; }
+.pause-overlay p { margin: 0; font-size: 14px; font-weight: 700; }
+.pause-overlay button { padding: 11px 24px; border: 2px solid #111; background: #111; color: #fff; font-weight: 800; }
 .selection-title { display: flex; justify-content: space-between; align-items: start; gap: 15px; margin-bottom: 20px; }
 .selection-title h2 { margin: 0; font-size: 27px; letter-spacing: -.04em; }
 .selection-title p:last-child { margin: 6px 0 0; color: #555; font-size: 13px; }

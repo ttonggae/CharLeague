@@ -3,7 +3,7 @@ import type { InputFrame, AttackPress } from './input.ts';
 import { Game, emptyInput, type GameSnapshot } from './game.ts';
 import type { CharacterEntry } from './characters.ts';
 
-export const ONLINE_VERSION = 'grim-war-online-8';
+export const ONLINE_VERSION = 'grim-war-online-9';
 export const INPUT_DELAY = 3;
 const MAX_FRAME = 1_000_000_000;
 const INPUT_MASK = 2 ** 34 - 1;
@@ -77,11 +77,12 @@ export function unpackInput(bits: number): InputFrame {
   return frame;
 }
 
-export interface InputPacket { kind: 'input'; frame: number; bits: number }
+export interface InputPacket { kind: 'input'; epoch: number; frame: number; bits: number }
 export interface HashPacket { kind: 'hash'; frame: number; hash: string }
 export interface SnapshotPacket { kind: 'snapshot'; frame: number; state: GameSnapshot }
+export interface ResumeStatePacket { kind: 'resume-state'; pauseId: number; frame: number; state: GameSnapshot }
 export function parseInputPacket(raw: unknown): InputPacket | null {
-  return object(raw) && raw.kind === 'input' && integer(raw.frame, 1, MAX_FRAME) && validInputBits(raw.bits)
+  return object(raw) && raw.kind === 'input' && integer(raw.epoch, 0, MAX_FRAME) && integer(raw.frame, 1, MAX_FRAME) && validInputBits(raw.bits)
     ? raw as unknown as InputPacket : null;
 }
 export function parseHashPacket(raw: unknown): HashPacket | null {
@@ -150,6 +151,12 @@ export function parseSnapshotPacket(raw: unknown, game: Game): SnapshotPacket | 
   return raw as unknown as SnapshotPacket;
 }
 
+export function parseResumeStatePacket(raw: unknown, game: Game): ResumeStatePacket | null {
+  if (!object(raw) || raw.kind !== 'resume-state' || !integer(raw.pauseId, 1, MAX_FRAME)) return null;
+  const snapshot = parseSnapshotPacket({ kind: 'snapshot', frame: raw.frame, state: raw.state }, game);
+  return snapshot ? raw as unknown as ResumeStatePacket : null;
+}
+
 export interface MatchTransport {
   sendInput(packet: InputPacket): void;
   sendHash(packet: HashPacket): void;
@@ -164,6 +171,7 @@ export class OnlineMatch {
   pingMs: number | null = null;
   onResync: (() => void) | null = null;
   private captureFrame = INPUT_DELAY + 1;
+  private inputEpoch = 0;
   private local = new Map<number, number>();
   private remote = new Map<number, number>();
   private localHashes = new Map<number, string>();
@@ -177,14 +185,14 @@ export class OnlineMatch {
 
   capture(input: InputFrame): void {
     if (this.captureFrame - this.frame > 120) return;
-    const packet: InputPacket = { kind: 'input', frame: this.captureFrame++, bits: packInput(input) };
+    const packet: InputPacket = { kind: 'input', epoch: this.inputEpoch, frame: this.captureFrame++, bits: packInput(input) };
     this.local.set(packet.frame, packet.bits);
     this.transport.sendInput(packet);
   }
 
   receiveInput(raw: unknown): void {
     const packet = parseInputPacket(raw);
-    if (!packet || packet.frame <= INPUT_DELAY || packet.frame < this.frame - 300 || packet.frame > this.captureFrame + 300) return;
+    if (!packet || packet.epoch !== this.inputEpoch || packet.frame <= INPUT_DELAY || packet.frame < this.frame - 300 || packet.frame > this.captureFrame + 300) return;
     if (this.remote.has(packet.frame)) return;
     this.remote.set(packet.frame, packet.bits);
   }
@@ -239,5 +247,32 @@ export class OnlineMatch {
     this.frame = packet.frame;
     while (this.frame < oldFrame && this.local.has(this.frame + 1) && this.remote.has(this.frame + 1)) this.step();
     this.onResync?.();
+  }
+
+  createResumeState(pauseId: number): ResumeStatePacket {
+    const packet: ResumeStatePacket = { kind: 'resume-state', pauseId, frame: this.frame, state: this.game.snapshot() };
+    this.inputEpoch = pauseId;
+    this.resetInputWindow();
+    return packet;
+  }
+
+  receiveResumeState(raw: unknown): boolean {
+    if (this.side !== 1) return false;
+    const packet = parseResumeStatePacket(raw, this.game);
+    if (!packet || packet.state.seed !== this.game.seed) return false;
+    this.game.restore(packet.state);
+    this.frame = packet.frame;
+    this.inputEpoch = packet.pauseId;
+    this.resetInputWindow();
+    this.onResync?.();
+    return true;
+  }
+
+  private resetInputWindow(): void {
+    this.local.clear(); this.remote.clear(); this.localHashes.clear(); this.remoteHashes.clear(); this.repaired.clear();
+    for (let frame = this.frame + 1; frame <= this.frame + INPUT_DELAY; frame++) {
+      this.local.set(frame, 0); this.remote.set(frame, 0);
+    }
+    this.captureFrame = this.frame + INPUT_DELAY + 1;
   }
 }
