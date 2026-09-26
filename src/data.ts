@@ -111,5 +111,12 @@ export const ANIMATION_FPS = 12;
 export const INPUT_BUFFER = 15; // 0.25 seconds
 export const COMBO_WINDOW = 48;
 export const VIEWPORT = { width: 960, height: 540 } as const;
-export const WORLD_SCALE = 0.5;
-export const STAGE = { width: 1920, height: 1080, floor: 884, left: 60, right: 1860 } as const;
+export const WORLD_SCALE = 0.75;
+export const STAMINA_REGEN_DELAY = TICK_RATE / 2;
+export const STAGE = {
+  width: VIEWPORT.width / WORLD_SCALE,
+  height: VIEWPORT.height / WORLD_SCALE,
+  floor: 442 / WORLD_SCALE,
+  left: 30 / WORLD_SCALE,
+  right: 930 / WORLD_SCALE
+} as const;

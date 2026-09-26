@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { Game, emptyInput } from '../src/game.ts';
-import { playerData, SKILL_IDS, type Button } from '../src/data.ts';
+import { playerData, SKILL_IDS, STAGE, STAMINA_REGEN_DELAY, type Button } from '../src/data.ts';
 import { KEY_ACTION_IDS } from '../src/input.ts';
 import { attackEffectAnchor } from '../src/render.ts';
 
@@ -31,10 +31,22 @@ test('fixed-tick movement, jump, gravity and floor collision remain; down does n
   assert.equal(game.player.vx, 0);
   game.update({ ...emptyInput(), up: true });
   assert.equal(game.player.state, 'jump');
-  assert.ok(game.player.y < 884);
+  assert.ok(game.player.y < STAGE.floor);
   advance(game, 50);
-  assert.equal(game.player.y, 884);
+  assert.equal(game.player.y, STAGE.floor);
   assert.equal(game.player.state, 'idle');
+});
+
+test('movement animation starts at frame zero and advances from its own state clock', () => {
+  const game = new Game(); game.setMode('idle');
+  game.update({ ...emptyInput(), right: true });
+  assert.equal(game.player.state, 'move');
+  assert.equal(game.player.stateTick, 0);
+  advance(game, 5, { ...emptyInput(), right: true });
+  assert.equal(game.player.stateTick, 5);
+  game.update(emptyInput());
+  assert.equal(game.player.state, 'idle');
+  assert.equal(game.player.stateTick, 0);
 });
 
 test('A, S, D and Shift resolve to data-defined skills with matching IDs', () => {
@@ -50,7 +62,12 @@ test('skills spend stamina, regenerate it, and wait in the input buffer when sta
   const game = new Game(); game.setMode('idle');
   press(game, 'S');
   assert.equal(game.player.attack?.move.id, 'S');
-  assert.ok(game.player.stamina > 80 && game.player.stamina < 81);
+  assert.equal(game.player.stamina, 80);
+  assert.equal(game.player.staminaRegenDelayTicks, STAMINA_REGEN_DELAY - 1);
+  advance(game, STAMINA_REGEN_DELAY - 1);
+  assert.equal(game.player.stamina, 80);
+  advance(game, 1);
+  assert.equal(game.player.stamina, 80.2);
   game.restart(); game.setMode('idle'); game.player.stamina = 5;
   press(game, 'D');
   assert.equal(game.player.attack, null);
@@ -67,7 +84,7 @@ test('passive events and ultimate conditions are data-driven; ultimate use reset
     press(game, 'A'); advance(game, 18);
     assert.equal(game.player.ultimateProgress, hit);
   }
-  assert.ok(game.player.stamina > 65, 'hit passive restores stamina after each A cost');
+  assert.equal(game.player.stamina, 65, 'hit passive restores stamina immediately while natural regeneration remains delayed');
   press(game, 'Space');
   assert.equal(game.player.attack?.move.id, 'Space');
   assert.equal(game.player.ultimateProgress, 0);

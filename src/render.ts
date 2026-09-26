@@ -1,5 +1,5 @@
 import { ANIMATION_FPS, STAGE, TICK_RATE, VIEWPORT, WORLD_SCALE, type MoveData } from './data.ts';
-import { animationGroundOffset, animationScale, drawAtlasFrame, fighterAnimation, type LoadedAtlas } from './atlas.ts';
+import { animationGroundOffset, animationScale, drawAtlasFrame, fighterAnimation, fighterAnimationTick, type LoadedAtlas } from './atlas.ts';
 import { Game, type Fighter } from './game.ts';
 import { isUltimateMove, isUltimateReady, ultimateStatus } from './abilities.ts';
 
@@ -81,7 +81,7 @@ export class Renderer {
 
   private fighter(f: Fighter, atlas: LoadedAtlas | null, tick: number): void {
     const animation = fighterAnimation(f);
-    const animTick = f.attack ? f.attack.tick : tick;
+    const animTick = fighterAnimationTick(f);
     const scale = f.data.spriteScale ?? animationScale(atlas, 'idle', f.data.height);
     const anchorY = f.y - animationGroundOffset(atlas, 'idle', scale, f.data.height);
     if (f.attack?.move.bodyAnimationMode === 'overlay') {

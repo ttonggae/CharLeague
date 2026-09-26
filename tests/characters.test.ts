@@ -1,10 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
-import { parseAtlas, drawAtlasFrame, animationScale, animationGroundOffset } from '../src/atlas.ts';
+import { parseAtlas, drawAtlasFrame, animationScale, animationGroundOffset, fighterAnimationTick } from '../src/atlas.ts';
 import { parseCharacter, loadRoster } from '../src/characters.ts';
 import { Game, emptyInput } from '../src/game.ts';
 import { skillStatus } from '../src/render.ts';
+import { WORLD_SCALE } from '../src/data.ts';
 
 const json = async (path: string) => JSON.parse(await readFile(new URL(path, import.meta.url), 'utf8'));
 
@@ -44,7 +45,8 @@ test('only hans is registered with five skills, critical passive, and a conditio
   assert.equal(game.player.hp, hans.maxHp);
   assert.equal(game.dummy.hp, hans.maxHp);
   game.update({ ...emptyInput(), right: true });
-  assert.equal(game.player.x, 572 + hans.walkSpeed);
+  assert.equal(game.player.x, 286 / WORLD_SCALE + hans.walkSpeed);
+  assert.equal(fighterAnimationTick(game.player), 0);
   game.update({ ...emptyInput(), attacks: [{ button: 'S', horizontal: 0, up: false, down: false }] });
   assert.equal(game.player.attack?.move.id, 'S');
   game.restart();
@@ -95,6 +97,13 @@ test('hans guard drains stamina and reduces incoming damage by 25 percent', asyn
   assert.equal(game.player.hp, 92);
   assert.equal(game.player.state, 'guard');
   assert.equal(game.player.stamina, 95);
+  game.restart(); game.setMode('idle');
+  for (let i = 0; i < 60; i++) game.update(guard);
+  assert.equal(game.player.stamina, 70, 'Shift drains exactly 30 stamina per second');
+  for (let i = 0; i < 29; i++) game.update(emptyInput());
+  assert.equal(game.player.stamina, 70, 'guard stamina waits half a second before regenerating');
+  game.update(emptyInput());
+  assert.equal(game.player.stamina, 70.2);
 });
 
 test('S stuns, attacks against an active stun deal 50 percent more damage, and the third hit plays P', async () => {
@@ -178,6 +187,12 @@ test('hans v3 atlas provides all body, projectile, and ultimate-ready effect fra
   assert.equal(calls[0][0], image);
   assert.deepEqual(scales[0], [-1, 1]);
   assert.equal(ctx.imageSmoothingEnabled, false);
+
+  const moveSources: unknown[] = [];
+  const moveCtx = { save() {}, restore() {}, translate() {}, scale() {}, set imageSmoothingEnabled(_value: boolean) {},
+    drawImage(_image: unknown, sourceX: unknown) { moveSources.push(sourceX); } } as unknown as CanvasRenderingContext2D;
+  for (const tick of [0, 5, 10, 15]) assert.equal(drawAtlasFrame(moveCtx, loaded, 'characters', 'Move', tick, 0, 0, 1), true);
+  assert.deepEqual(moveSources, [1005, 1040, 1075, 1115], 'Move renders all four frames in order');
 });
 
 test('renderer selects the correct image across multiple atlas pages', () => {

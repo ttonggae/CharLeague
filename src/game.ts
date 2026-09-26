@@ -1,4 +1,4 @@
-import { COMBO_WINDOW, INPUT_BUFFER, STAGE, TICK_RATE, dummyData, playerData, type Button, type CharacterData, type FighterState, type MoveData } from './data.ts';
+import { COMBO_WINDOW, INPUT_BUFFER, STAGE, STAMINA_REGEN_DELAY, TICK_RATE, WORLD_SCALE, dummyData, playerData, type Button, type CharacterData, type FighterState, type MoveData } from './data.ts';
 import type { AttackPress, InputFrame } from './input.ts';
 import { advanceUltimate, applyPassive, canUseMove, isUltimateMove, isUltimateReady, passiveDamageMultiplier, spendForMove } from './abilities.ts';
 
@@ -7,7 +7,7 @@ export interface ActiveAttack { move: MoveData; tick: number; hit: boolean }
 export interface Fighter {
   data: CharacterData;
   x: number; y: number; vx: number; vy: number; facing: -1 | 1;
-  hp: number; stamina: number; ultimateProgress: number; state: FighterState; guarding: boolean; guardHeld: boolean;
+  hp: number; stamina: number; staminaRegenDelayTicks: number; ultimateProgress: number; state: FighterState; stateTick: number; guarding: boolean; guardHeld: boolean;
   hurtTicks: number; stunTicks: number; ultimateReadyEffectTick: number | null;
   cooldowns: Record<Button, number>; attack: ActiveAttack | null;
 }
@@ -21,8 +21,8 @@ interface ControlMemory {
 const controlMemory = (): ControlMemory => ({ pending: [], history: [] });
 
 export interface FighterSnapshot {
-  x: number; y: number; vx: number; vy: number; facing: -1 | 1; hp: number; stamina: number; ultimateProgress: number;
-  state: FighterState; guarding: boolean; guardHeld: boolean; hurtTicks: number;
+  x: number; y: number; vx: number; vy: number; facing: -1 | 1; hp: number; stamina: number; staminaRegenDelayTicks: number; ultimateProgress: number;
+  state: FighterState; stateTick: number; guarding: boolean; guardHeld: boolean; hurtTicks: number;
   stunTicks: number; ultimateReadyEffectTick: number | null;
   cooldowns: Record<Button, number>;
   attack: { moveId: string; tick: number; hit: boolean } | null;
@@ -35,7 +35,7 @@ export interface GameSnapshot {
 }
 
 function fighter(data: CharacterData, x: number, facing: -1 | 1): Fighter {
-  return { data, x, y: STAGE.floor, vx: 0, vy: 0, facing, hp: data.maxHp, stamina: data.maxStamina, ultimateProgress: 0, state: 'idle', guarding: false, guardHeld: false, hurtTicks: 0, stunTicks: 0, ultimateReadyEffectTick: null,
+  return { data, x, y: STAGE.floor, vx: 0, vy: 0, facing, hp: data.maxHp, stamina: data.maxStamina, staminaRegenDelayTicks: 0, ultimateProgress: 0, state: 'idle', stateTick: 0, guarding: false, guardHeld: false, hurtTicks: 0, stunTicks: 0, ultimateReadyEffectTick: null,
     cooldowns: { A: 0, S: 0, D: 0, Shift: 0, Space: 0 }, attack: null };
 }
 function clamp(value: number, min: number, max: number): number { return Math.max(min, Math.min(max, value)); }
@@ -63,8 +63,8 @@ export class Game {
     this.playerCharacter = playerCharacter;
     this.dummyCharacter = dummyCharacter;
     this.bestOfThree = bestOfThree;
-    this.player = fighter(playerCharacter, 572, 1);
-    this.dummy = fighter(dummyCharacter, 1348, -1);
+    this.player = fighter(playerCharacter, 286 / WORLD_SCALE, 1);
+    this.dummy = fighter(dummyCharacter, 674 / WORLD_SCALE, -1);
     this.seed = seed >>> 0;
   }
 
@@ -75,8 +75,8 @@ export class Game {
   }
 
   private resetRound(): void {
-    this.player = fighter(this.playerCharacter, 572, 1);
-    this.dummy = fighter(this.dummyCharacter, 1348, -1);
+    this.player = fighter(this.playerCharacter, 286 / WORLD_SCALE, 1);
+    this.dummy = fighter(this.dummyCharacter, 674 / WORLD_SCALE, -1);
     this.winner = null; this.koTick = null; this.notice = 'FIGHT!'; this.noticeTick = this.tick;
     this.controls = [controlMemory(), controlMemory()];
     this.dummyCooldown = 150;
@@ -152,7 +152,9 @@ export class Game {
     f.guardHeld = !!guardMove && input.heldSkills.includes('Shift');
     f.guarding = f.guardHeld && this.canMove(f) && f.y >= STAGE.floor && f.stamina > 0;
     if (f.guarding && guardMove) {
-      f.stamina = Math.max(0, Math.round((f.stamina - (guardMove.guardStaminaPerSecond ?? 0) / TICK_RATE) * 1000) / 1000);
+      const drain = (guardMove.guardStaminaPerSecond ?? 0) / TICK_RATE;
+      f.stamina = Math.max(0, Math.round((f.stamina - drain) * 1000) / 1000);
+      if (drain > 0) f.staminaRegenDelayTicks = STAMINA_REGEN_DELAY;
       if (f.stamina === 0) f.guarding = false;
     }
     if (this.canMove(f) && !f.guarding) {
@@ -199,6 +201,7 @@ export class Game {
   private startAttack(f: Fighter, move: MoveData): boolean {
     if (move.kind === 'guard' || !canUseMove(f, move)) return false;
     spendForMove(f, move);
+    if (move.staminaCost > 0) f.staminaRegenDelayTicks = STAMINA_REGEN_DELAY;
     if (isUltimateMove(f, move)) f.ultimateReadyEffectTick = null;
     f.attack = { move, tick: 0, hit: false };
     f.guarding = false;
@@ -219,7 +222,8 @@ export class Game {
   }
 
   private advanceFighter(f: Fighter, owner: 0 | 1): void {
-    if (f.hp > 0 && !f.guardHeld && f.stamina < f.data.maxStamina) f.stamina = Math.min(f.data.maxStamina, Math.round((f.stamina + f.data.staminaRegen) * 1000) / 1000);
+    if (f.staminaRegenDelayTicks > 0) f.staminaRegenDelayTicks--;
+    else if (f.hp > 0 && !f.guardHeld && f.stamina < f.data.maxStamina) f.stamina = Math.min(f.data.maxStamina, Math.round((f.stamina + f.data.staminaRegen) * 1000) / 1000);
     if (f.hurtTicks > 0) {
       f.hurtTicks--;
       f.vx *= 0.88;
@@ -327,26 +331,28 @@ export class Game {
       defender.stunTicks = 0;
       defender.vx = 0;
       defender.vy = 0;
-      defender.state = 'ko';
       this.say(this.winner === 'player' ? 'PLAYER WINS' : 'DUMMY WINS');
     }
   }
 
   private updateState(f: Fighter): void {
-    if (f.hp <= 0) f.state = 'ko';
-    else if (f.stunTicks > 0) f.state = 'stun';
-    else if (f.hurtTicks > 0) f.state = 'hurt';
-    else if (f.attack) f.state = 'attack';
-    else if (f.y < STAGE.floor) f.state = f.vy < 0 ? 'jump' : 'fall';
-    else if (f.guarding) f.state = 'guard';
-    else if (Math.abs(f.vx) > 0.1) f.state = 'move';
-    else f.state = 'idle';
+    let next: FighterState;
+    if (f.hp <= 0) next = 'ko';
+    else if (f.stunTicks > 0) next = 'stun';
+    else if (f.hurtTicks > 0) next = 'hurt';
+    else if (f.attack) next = 'attack';
+    else if (f.y < STAGE.floor) next = f.vy < 0 ? 'jump' : 'fall';
+    else if (f.guarding) next = 'guard';
+    else if (Math.abs(f.vx) > 0.1) next = 'move';
+    else next = 'idle';
+    if (next === f.state) f.stateTick++;
+    else { f.state = next; f.stateTick = 0; }
   }
 
   snapshot(): GameSnapshot {
     const save = (f: Fighter): FighterSnapshot => ({
-      x: f.x, y: f.y, vx: f.vx, vy: f.vy, facing: f.facing, hp: f.hp, stamina: f.stamina, ultimateProgress: f.ultimateProgress,
-      state: f.state, guarding: f.guarding, guardHeld: f.guardHeld,
+      x: f.x, y: f.y, vx: f.vx, vy: f.vy, facing: f.facing, hp: f.hp, stamina: f.stamina, staminaRegenDelayTicks: f.staminaRegenDelayTicks, ultimateProgress: f.ultimateProgress,
+      state: f.state, stateTick: f.stateTick, guarding: f.guarding, guardHeld: f.guardHeld,
       hurtTicks: f.hurtTicks, stunTicks: f.stunTicks, ultimateReadyEffectTick: f.ultimateReadyEffectTick,
       cooldowns: { ...f.cooldowns },
       attack: f.attack ? { moveId: f.attack.move.id, tick: f.attack.tick, hit: f.attack.hit } : null
@@ -364,7 +370,7 @@ export class Game {
       const move = saved.attack && data.moves.find(candidate => candidate.id === saved.attack!.moveId);
       if (saved.attack && !move) throw new Error(`알 수 없는 기술 ID: ${saved.attack.moveId}`);
       return { data, x: saved.x, y: saved.y, vx: saved.vx, vy: saved.vy,
-        facing: saved.facing, hp: saved.hp, stamina: saved.stamina, ultimateProgress: saved.ultimateProgress, state: saved.state,
+        facing: saved.facing, hp: saved.hp, stamina: saved.stamina, staminaRegenDelayTicks: saved.staminaRegenDelayTicks, ultimateProgress: saved.ultimateProgress, state: saved.state, stateTick: saved.stateTick,
         guarding: saved.guarding, guardHeld: saved.guardHeld,
         hurtTicks: saved.hurtTicks, stunTicks: saved.stunTicks, ultimateReadyEffectTick: saved.ultimateReadyEffectTick,
         cooldowns: { ...saved.cooldowns },

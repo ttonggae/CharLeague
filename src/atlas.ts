@@ -160,3 +160,7 @@ export function fighterAnimation(f: Fighter): string {
   if (f.state === 'guard') return 'Shift';
   return f.state;
 }
+
+export function fighterAnimationTick(f: Fighter): number {
+  return f.attack ? f.attack.tick : f.stateTick;
+}

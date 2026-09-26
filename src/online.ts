@@ -3,7 +3,7 @@ import type { InputFrame, AttackPress } from './input.ts';
 import { Game, emptyInput, type GameSnapshot } from './game.ts';
 import type { CharacterEntry } from './characters.ts';
 
-export const ONLINE_VERSION = 'grim-war-online-7';
+export const ONLINE_VERSION = 'grim-war-online-8';
 export const INPUT_DELAY = 3;
 const MAX_FRAME = 1_000_000_000;
 const INPUT_MASK = 2 ** 34 - 1;
@@ -97,9 +97,10 @@ function validFighter(raw: unknown, gameFighter: Game['player']): boolean {
   const cooldowns = raw.cooldowns;
   if (!integer(raw.hp, 0, gameFighter.data.maxHp)
     || typeof raw.stamina !== 'number' || !Number.isFinite(raw.stamina) || raw.stamina < 0 || raw.stamina > gameFighter.data.maxStamina
+    || !integer(raw.staminaRegenDelayTicks, 0, 10_000)
     || typeof raw.ultimateProgress !== 'number' || !Number.isFinite(raw.ultimateProgress) || raw.ultimateProgress < 0 || raw.ultimateProgress > ultimateTarget
     || (raw.facing !== -1 && raw.facing !== 1)
-    || !states.has(raw.state as FighterState) || typeof raw.guarding !== 'boolean' || typeof raw.guardHeld !== 'boolean'
+    || !states.has(raw.state as FighterState) || !integer(raw.stateTick, 0, MAX_FRAME) || typeof raw.guarding !== 'boolean' || typeof raw.guardHeld !== 'boolean'
     || !integer(raw.hurtTicks, 0, 10_000)
     || !integer(raw.stunTicks, 0, 10_000)
     || (raw.ultimateReadyEffectTick !== null && !integer(raw.ultimateReadyEffectTick, 0, 10_000))
